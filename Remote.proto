@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package mq.proto.remote;
+
+enum MessageId {
+	NoOp = 0;
+	Broadcast = 1;
+	Personal = 2;
+	Success = 3;
+}
+
+message Message {
+	MessageId id = 1;
+	string command = 2;
+	optional bool includeself = 3;
+}
