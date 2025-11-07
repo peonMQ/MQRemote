@@ -10,10 +10,7 @@ PLUGIN_VERSION(0.1);
 
 
 const std::chrono::milliseconds UPDATE_TICK_MILLISECONDS = std::chrono::milliseconds(1000);
-remote::SubscriptionController _allSubscription(std::nullopt);
-remote::SubscriptionController _groupSubscription("group");
-remote::SubscriptionController _raidSubscription("raid");
-remote::SubscriptionController _zoneSubscription("zone");
+std::unordered_map<SubscriptionType, remote::SubscriptionController> controllers = {};
 
 std::string init_name(const char* szStr)
 {
@@ -49,58 +46,85 @@ void RctCmd(PlayerClient* pcClient, char* szLine)
 	else 
 	{
 		std::string unescaped_message = unescape_args(message);
-		_allSubscription.SendCommand(name, unescaped_message);
+		if (auto it = controllers.find(SubscriptionType::All); it != controllers.end()) 
+		{
+			it->second.SendCommand(name, unescaped_message);
+		}
 	}
 }
 
 void RcgCmd(PlayerClient* pcClient, char* szLine)
 {
-	_groupSubscription.SendCommand(std::string(szLine), false);
+	if (auto it = controllers.find(SubscriptionType::Group); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), false);
+	}
 }
 
 void RcgaCmd(PlayerClient* pcClient, char* szLine)
 {
-	_groupSubscription.SendCommand(std::string(szLine), true);
+	if (auto it = controllers.find(SubscriptionType::Group); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), true);
+	}
 }
 
 void RcrCmd(PlayerClient* pcClient, char* szLine)
 {
-	_raidSubscription.SendCommand(std::string(szLine), false);
+	if (auto it = controllers.find(SubscriptionType::Raid); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), false);
+	}
 }
 
 void RcraCmd(PlayerClient* pcClient, char* szLine)
 {
-	_raidSubscription.SendCommand(std::string(szLine), true);
+	if (auto it = controllers.find(SubscriptionType::Raid); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), true);
+	}
 }
 
 void RcaCmd(PlayerClient* pcClient, char* szLine)
 {
-	_allSubscription.SendCommand(std::string(szLine), false);
+	if (auto it = controllers.find(SubscriptionType::All); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), false);
+	}
 }
 
 void RcaaCmd(PlayerClient* pcClient, char* szLine)
 {
-	_allSubscription.SendCommand(std::string(szLine), true);
+	if (auto it = controllers.find(SubscriptionType::All); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), true);
+	}
 }
 
 void RczCmd(PlayerClient* pcClient, char* szLine)
 {
-	_zoneSubscription.SendCommand(std::string(szLine), false);
+	if (auto it = controllers.find(SubscriptionType::Zone); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), false);
+	}
 }
 
 void RczaCmd(PlayerClient* pcClient, char* szLine)
 {
-	_zoneSubscription.SendCommand(std::string(szLine), true);
+	if (auto it = controllers.find(SubscriptionType::Zone); it != controllers.end()) 
+	{
+		it->second.SendCommand(std::string(szLine), true);
+	}
 }
 
 PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
 	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
-	_allSubscription.Connect();
+	controllers.try_emplace(SubscriptionType::All, SubscriptionType::All);
 	if (GetGameState() == GAMESTATE_INGAME) 
 	{
-		_zoneSubscription.Connect(pZoneInfo->ShortName);
+		controllers.try_emplace(SubscriptionType::Zone, SubscriptionType::Zone, pZoneInfo->ShortName);
 	}
 
 	AddCommand("/rct", RctCmd);
@@ -118,10 +142,7 @@ PLUGIN_API void ShutdownPlugin()
 {
 	DebugSpewAlways("\am[%s]\ax Shutting down", mqplugin::PluginName);
 	WriteChatf("\am[%s]\ax Shutting down", mqplugin::PluginName);
-	_allSubscription.Disconnect();
-	_groupSubscription.Disconnect();
-	_raidSubscription.Disconnect();
-	_zoneSubscription.Disconnect();
+	controllers.clear();
 	RemoveMQ2Data("Remote");
 
 	RemoveCommand("/rct");
@@ -139,14 +160,11 @@ PLUGIN_API void SetGameState(int gameState)
 {
 	if (gameState == GAMESTATE_CHARSELECT)
 	{
-		_allSubscription.Disconnect();
-		_groupSubscription.Disconnect();
-		_raidSubscription.Disconnect();
-		_zoneSubscription.Disconnect();
+		controllers.clear();
 	}
 	else if (gameState == GAMESTATE_INGAME) 
 	{
-		_allSubscription.Connect();
+		controllers.try_emplace(SubscriptionType::All, SubscriptionType::All, std::nullopt);
 	}
 }
 PLUGIN_API void OnPulse() {
@@ -161,43 +179,54 @@ PLUGIN_API void OnPulse() {
 		if (pLocalPC->pGroupInfo && pLocalPC->pGroupInfo->pLeader) 
 		{
 			auto name = std::string(pLocalPC->pGroupInfo->pLeader->Name);
-			if (!_groupSubscription.IsChannelFor(name)) 
+			if (auto it = controllers.find(SubscriptionType::Group); it != controllers.end()) 
 			{
-				_groupSubscription.Disconnect();
-				_groupSubscription.Connect(name);
+				if (!it->second.IsChannelFor(name))
+				{
+					controllers.try_emplace(SubscriptionType::Group, SubscriptionType::Group, name);
+				}
+			} else 
+			{
+				controllers.try_emplace(SubscriptionType::Group, SubscriptionType::Group, name);
 			}
 		}
 		else 
 		{
-			_groupSubscription.Disconnect();
+			controllers.erase(SubscriptionType::Group);
 		}
 
 		if (pRaid && pRaid->RaidLeaderName[0]) 
 		{
 			auto name = std::string(pRaid->RaidLeaderName);
-			if (!_raidSubscription.IsChannelFor(name)) 
+			if (auto it = controllers.find(SubscriptionType::Raid); it != controllers.end()) 
 			{
-				_raidSubscription.Disconnect();
-				_raidSubscription.Connect(name);
+				if (!it->second.IsChannelFor(name))
+				{
+					controllers.try_emplace(SubscriptionType::Raid, SubscriptionType::Raid, name);
+				}
+			}
+			else
+			{
+				controllers.try_emplace(SubscriptionType::Raid, SubscriptionType::Raid, name);
 			}
 		}
 		else 
 		{
-			_raidSubscription.Disconnect();
+			controllers.erase(SubscriptionType::Raid);
 		}
 	}
 }
 
 PLUGIN_API void OnBeginZone()
 {
-	_zoneSubscription.Disconnect();
+	controllers.erase(SubscriptionType::Zone);
 }
 
 PLUGIN_API void OnEndZone()
 {
 	if (GetGameState() == GAMESTATE_INGAME) 
 	{
-		_zoneSubscription.Connect(pZoneInfo->ShortName);
+		controllers.try_emplace(SubscriptionType::Zone, SubscriptionType::Zone, pZoneInfo->ShortName);
 	}
 }
 
