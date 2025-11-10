@@ -10,7 +10,7 @@ PLUGIN_VERSION(0.1);
 
 
 const std::chrono::milliseconds UPDATE_TICK_MILLISECONDS = std::chrono::milliseconds(1000);
-std::unordered_map<SubscriptionType, remote::SubscriptionController> controllers = {};
+std::unordered_map<SubscriptionType, remote::SubscriptionController> s_controllers = {};
 
 std::string init_name(const char* szStr)
 {
@@ -46,7 +46,7 @@ void RctCmd(PlayerClient* pcClient, char* szLine)
 	else 
 	{
 		std::string unescaped_message = unescape_args(message);
-		if (auto it = controllers.find(SubscriptionType::All); it != controllers.end()) 
+		if (auto it = s_controllers.find(SubscriptionType::All); it != s_controllers.end()) 
 		{
 			it->second.SendCommand(name, unescaped_message);
 		}
@@ -55,7 +55,7 @@ void RctCmd(PlayerClient* pcClient, char* szLine)
 
 void RcgCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::Group); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::Group); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), false);
 	}
@@ -63,7 +63,7 @@ void RcgCmd(PlayerClient* pcClient, char* szLine)
 
 void RcgaCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::Group); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::Group); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), true);
 	}
@@ -71,7 +71,7 @@ void RcgaCmd(PlayerClient* pcClient, char* szLine)
 
 void RcrCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::Raid); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::Raid); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), false);
 	}
@@ -79,7 +79,7 @@ void RcrCmd(PlayerClient* pcClient, char* szLine)
 
 void RcraCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::Raid); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::Raid); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), true);
 	}
@@ -87,7 +87,7 @@ void RcraCmd(PlayerClient* pcClient, char* szLine)
 
 void RcaCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::All); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::All); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), false);
 	}
@@ -95,7 +95,7 @@ void RcaCmd(PlayerClient* pcClient, char* szLine)
 
 void RcaaCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::All); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::All); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), true);
 	}
@@ -103,7 +103,7 @@ void RcaaCmd(PlayerClient* pcClient, char* szLine)
 
 void RczCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::Zone); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::Zone); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), false);
 	}
@@ -111,9 +111,56 @@ void RczCmd(PlayerClient* pcClient, char* szLine)
 
 void RczaCmd(PlayerClient* pcClient, char* szLine)
 {
-	if (auto it = controllers.find(SubscriptionType::Zone); it != controllers.end()) 
+	if (auto it = s_controllers.find(SubscriptionType::Zone); it != s_controllers.end()) 
 	{
 		it->second.SendCommand(std::string(szLine), true);
+	}
+}
+
+const char* GetGroupLeader() {
+    if (pLocalPC &&
+        pLocalPC->pGroupInfo &&
+        pLocalPC->pGroupInfo->pLeader)
+    {
+        return pLocalPC->pGroupInfo->pLeader->Name.c_str();
+    }
+    return nullptr;
+}
+
+const char* GetRaidLeader() {
+    if (pRaid && pRaid->RaidLeaderName[0]) {
+        return pRaid->RaidLeaderName;
+    }
+    return nullptr;
+}
+
+void UpdateSubscription(SubscriptionType type) 
+{
+	if(type != SubscriptionType::Group && type != SubscriptionType::Raid) {
+		return;
+	}
+
+	char* leaderName;
+	if(type == SubscriptionType::Group) {
+		leaderName = const_cast<char*>(GetGroupLeader());
+	} else {
+		leaderName = const_cast<char*>(GetRaidLeader());
+	}
+
+	if (leaderName && leaderName[0]) {
+		std::string name = leaderName;
+
+		if (auto it = s_controllers.find(type); it != s_controllers.end()) {
+			if (!it->second.IsChannelFor(name)) {
+				s_controllers.try_emplace(type, type, name);
+			}
+		}
+		else {
+			s_controllers.try_emplace(type, type, name);
+		}
+	}
+	else {
+		s_controllers.erase(type);
 	}
 }
 
@@ -121,10 +168,10 @@ PLUGIN_API void InitializePlugin()
 {
 	DebugSpewAlways("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
 	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
-	controllers.try_emplace(SubscriptionType::All, SubscriptionType::All);
+	s_controllers.try_emplace(SubscriptionType::All, SubscriptionType::All);
 	if (GetGameState() == GAMESTATE_INGAME) 
 	{
-		controllers.try_emplace(SubscriptionType::Zone, SubscriptionType::Zone, pZoneInfo->ShortName);
+		s_controllers.try_emplace(SubscriptionType::Zone, SubscriptionType::Zone, pZoneInfo->ShortName);
 	}
 
 	AddCommand("/rct", RctCmd);
@@ -142,7 +189,7 @@ PLUGIN_API void ShutdownPlugin()
 {
 	DebugSpewAlways("\am[%s]\ax Shutting down", mqplugin::PluginName);
 	WriteChatf("\am[%s]\ax Shutting down", mqplugin::PluginName);
-	controllers.clear();
+	s_controllers.clear();
 	RemoveMQ2Data("Remote");
 
 	RemoveCommand("/rct");
@@ -160,13 +207,14 @@ PLUGIN_API void SetGameState(int gameState)
 {
 	if (gameState == GAMESTATE_CHARSELECT)
 	{
-		controllers.clear();
+		s_controllers.clear();
 	}
 	else if (gameState == GAMESTATE_INGAME) 
 	{
-		controllers.try_emplace(SubscriptionType::All, SubscriptionType::All, std::nullopt);
+		s_controllers.try_emplace(SubscriptionType::All, SubscriptionType::All, std::nullopt);
 	}
 }
+
 PLUGIN_API void OnPulse() {
 	static std::chrono::steady_clock::time_point s_pulse_timer = std::chrono::steady_clock::now();
 
@@ -176,57 +224,21 @@ PLUGIN_API void OnPulse() {
 	if (now > s_pulse_timer) 
 	{
 		s_pulse_timer = now + UPDATE_TICK_MILLISECONDS; 
-		if (pLocalPC->pGroupInfo && pLocalPC->pGroupInfo->pLeader) 
-		{
-			auto name = std::string(pLocalPC->pGroupInfo->pLeader->Name);
-			if (auto it = controllers.find(SubscriptionType::Group); it != controllers.end()) 
-			{
-				if (!it->second.IsChannelFor(name))
-				{
-					controllers.try_emplace(SubscriptionType::Group, SubscriptionType::Group, name);
-				}
-			} else 
-			{
-				controllers.try_emplace(SubscriptionType::Group, SubscriptionType::Group, name);
-			}
-		}
-		else 
-		{
-			controllers.erase(SubscriptionType::Group);
-		}
-
-		if (pRaid && pRaid->RaidLeaderName[0]) 
-		{
-			auto name = std::string(pRaid->RaidLeaderName);
-			if (auto it = controllers.find(SubscriptionType::Raid); it != controllers.end()) 
-			{
-				if (!it->second.IsChannelFor(name))
-				{
-					controllers.try_emplace(SubscriptionType::Raid, SubscriptionType::Raid, name);
-				}
-			}
-			else
-			{
-				controllers.try_emplace(SubscriptionType::Raid, SubscriptionType::Raid, name);
-			}
-		}
-		else 
-		{
-			controllers.erase(SubscriptionType::Raid);
-		}
+		UpdateSubscription(SubscriptionType::Group);
+		UpdateSubscription(SubscriptionType::Raid);
 	}
 }
 
 PLUGIN_API void OnBeginZone()
 {
-	controllers.erase(SubscriptionType::Zone);
+	s_controllers.erase(SubscriptionType::Zone);
 }
 
 PLUGIN_API void OnEndZone()
 {
 	if (GetGameState() == GAMESTATE_INGAME) 
 	{
-		controllers.try_emplace(SubscriptionType::Zone, SubscriptionType::Zone, pZoneInfo->ShortName);
+		s_controllers.try_emplace(SubscriptionType::Zone, SubscriptionType::Zone, pZoneInfo->ShortName);
 	}
 }
 
