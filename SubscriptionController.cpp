@@ -6,7 +6,7 @@ namespace remote {
 		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s) ]\ax \aw%s\ax", mqplugin::PluginName, channelName.c_str(), command.c_str());
 		postoffice::Address address;
 		address.Server = GetServerShortName();
-		if (m_channelSuffix.has_value())
+		if (m_channelPrefix.has_value())
 		{
 			address.Mailbox = channelName;
 		}
