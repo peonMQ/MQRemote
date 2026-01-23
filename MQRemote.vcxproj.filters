@@ -18,10 +18,10 @@
     <ClCompile Include="MQRemote.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SubscriptionController.cpp">
+    <ClCompile Include="Remote.pb.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Remote.pb.cc">
+    <ClCompile Include="Channel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,10 +29,10 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SubscriptionController.h">
+    <ClInclude Include="Remote.pb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Remote.pb.h">
+    <ClInclude Include="Channel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
