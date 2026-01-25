@@ -15,41 +15,42 @@ The plugin initializes automatically on load. Default channels (Globla, Server, 
 MQRemote supports multiple logical communication channels. All commands use the /rc prefix.
 
 #### Built-in Channels
+All channels follow the pattern of `/rc [+self] <channel> <message>` where `+self` is optional.
 ##### Global Channel
 The global channel is always available
 ```
-/rca <message>     - Send a command to the global channel excluding self
-/rcaa <message>    - Send a command to the global channel message including self
+/rc global <message>        - Send a command to the global channel excluding self
+/rc +self global <message>  - Send a command to the global channel message including self
 ```
 
 ##### Server Channel
 The server channel is available from character select screen and onwards. Use this to limit recievers to be only the other characters logged into the same server.
 ```
-/rcs <message>     - Send a command to the server channel excluding self
-/rcsa <message>    - Send a command to the server channel message including self
-/rct <name> <msg>  - Send a private message via the server channel
+/rc server <message>        - Send a command to the server channel excluding self
+/rc +self server <message>  - Send a command to the server channel message including self
+/rc <name> <message>        - Send a private message via the server channel
 
 ```
 
 ##### Zone Channel
 The zone channel is available once the character is registered as being ingame. Use this to limit recievers to be only the other characters who are in the same zone.
 ```
-/rcz <message>     - Send a command to the zone channel excluding self
-/rcza <message>    - Send a command to the zone channel message including self
+/rc zone <message>        - Send a command to the zone channel excluding self
+/rc +self zone <message>  - Send a command to the zone channel message including self
 ```
 
 ##### Group Channel
 The group channel is available whenever the character is in a group. Sends a command only to the characters in the same group.
 ```
-/rcg <message>     - Send a command to the group channel excluding self
-/rcga <message>    - Send a command to the group channel message including self
+/rc group <message>        - Send a command to the group channel excluding self
+/rc +self group <message>  - Send a command to the group channel message including self
 ```
 
 ##### Raid Channel
 The group channel is available whenever the character is in a raid. Sends a command only to the characters in the same raid.
 ```
-/rcr <message>     - Send a command to the raid channel excluding self
-/rcra <message>    - Send a command to the raid channel message including self
+/rc raid <message>        - Send a command to the raid channel excluding self
+/rc +self raid <message>  - Send a command to the raid channel message including self
 ```
 
 #### Custom Channels
@@ -62,7 +63,7 @@ You can also create and use custom channels dynamically. Channels may be marked 
 /rcleave <channel> [auto|noauto]
 
 #use
-/rcc <channel> <message>
+/rc [+self] <channel> <message>
 ```
 
 ### Configuration File
@@ -82,10 +83,10 @@ The ini is on a per serer basis: `MQRemote_SeverShortName.ini`
 ### Examples
 Sending commands to other toons: 
 ```
-/rct ToonName /sit
-/rct ToonName /stand
-/rct ToonName /macro ninjalooter
-/rct ToonName /endmacro
+/rc ToonName /sit
+/rc ToonName /stand
+/rc ToonName /macro ninjalooter
+/rc ToonName /endmacro
 ```
 
 Make a channel called "clerics". On each character you want in the channel, type:
@@ -95,17 +96,17 @@ Make a channel called "clerics". On each character you want in the channel, type
 
 To make all characters in the channel "clerics" say "I am a cleric",
 ```
-/rcc clerics /say I am a cleric
+/rc clerics /say I am a cleric
 ```
 
 Sending commands to all other connects clients: 
 ```
-/rca /target id ${Me.ID}
+/rc global /target id ${Me.ID}
 ```
 
 To have the recieving client parse MQ data use `noparse`
 ```
-/noparse /rcaa /echo I am ${Me.PctExp} into ${Me.Level}
+/noparse /rc +self global /echo I am ${Me.PctExp} into ${Me.Level}
 ```
 
 ## Authors

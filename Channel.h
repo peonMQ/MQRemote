@@ -7,10 +7,10 @@ namespace remote {
 	{
 	public:
 		Channel(std::string name, std::string sub_name = "")
-			: m_name(std::move(name)), m_sub_name(std::move(sub_name))
+			: m_name(std::move(name)), m_sub_name(std::move(sub_name)), m_dnsName(m_sub_name.empty() ? m_name : m_name + "." + m_sub_name)
 		{
 			// Initialization logic (was in Initialize())
-			if (DnsName().empty())
+			if (m_dnsName.empty())
 			{
 				WriteChatf("\am[%s]\ax Connecting ()", mqplugin::PluginName);
 				m_dropbox = postoffice::AddActor([this](const std::shared_ptr<postoffice::Message>& msg) {
@@ -19,9 +19,8 @@ namespace remote {
 			}
 			else
 			{
-				auto channelName = DnsName();
-				WriteChatf("\am[%s]\ax Connecting (\aw%s\ax)", mqplugin::PluginName, channelName.c_str());
-				m_dropbox = postoffice::AddActor(channelName.c_str(), [this](const std::shared_ptr<postoffice::Message>& msg) {
+				WriteChatf("\am[%s]\ax Connecting (\aw%s\ax)", mqplugin::PluginName, m_dnsName.c_str());
+				m_dropbox = postoffice::AddActor(m_dnsName.c_str(), [this](const std::shared_ptr<postoffice::Message>& msg) {
 					ReceivedMessageHandler(msg);
 					});
 			}
@@ -34,23 +33,17 @@ namespace remote {
 				WriteChatf("\am[%s]\ax Disconnecting ()", mqplugin::PluginName);
 			}
 			else {
-				auto channelName = DnsName();
-				WriteChatf("\am[%s]\ax Disconnecting (\aw%s\ax)", mqplugin::PluginName, channelName.c_str());
+				WriteChatf("\am[%s]\ax Disconnecting (\aw%s\ax)", mqplugin::PluginName, m_dnsName.c_str());
 			}
 
 			m_dropbox.Remove();
 		}
 
-		void SendCommand(std::string command, bool includeSelf);
-		void SendCommand(std::string reciever, std::string command);
-		std::string Name() const { return m_name; }
-		std::string SubName() const { return m_sub_name; }
-		std::string DnsName() const
-		{
-			if (m_sub_name.empty())
-				return m_name;
-			return m_name + "." + m_sub_name;
-		}
+		void SendCommand(const std::string_view command, const bool includeSelf);
+		void SendCommand(const std::string_view reciever, const std::string_view command);
+		std::string_view Name() const { return m_name; }
+		std::string_view SubName() const { return m_sub_name; }
+		std::string_view DnsName() const noexcept { return m_dnsName;}
 
 		// Delete copy constructor/assignment
 		Channel(const Channel&) = delete;
@@ -64,8 +57,9 @@ namespace remote {
 		void ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message);
 
 	private:
-		std::string m_name;
-		std::string m_sub_name;
+		const std::string m_name;
+		const std::string m_sub_name;
+		const std::string m_dnsName;
 		postoffice::DropboxAPI m_dropbox;
 	};
 }
