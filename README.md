@@ -1,42 +1,117 @@
-# MQRemote
+## MQRemote
 
-One Paragraph project description goes here
+MQRemote is a modernized remote communication plugin for MacroQuest, inspired by EQBC and MQ2DanNet. It provides reliable, multi-channel text communication between clients with a cleaner internal design, and tighter integration with contemporary MacroQuest workflows using its built-in actors system.
 
 ## Getting Started
-
-Quick start instructions to get users up and going
+Load the plugin like any other MacroQuest plugin:
 
 ```txt
 /plugin MQRemote
 ```
 
+The plugin initializes automatically on load. Default channels (Globla, Server, Group, Raid, Zone) are created dynamically as they become available in-game. No additional setup is required for basic functionality.
+
 ### Commands
+MQRemote supports multiple logical communication channels. All commands use the /rc prefix.
 
-Describe the commands available and how to use them.
+#### Built-in Channels
+##### Global Channel
+The global channel is always available
+```
+/rca <message>     - Send a command to the global channel excluding self
+/rcaa <message>    - Send a command to the global channel message including self
+```
 
-```txt
-Give examples
+##### Server Channel
+The server channel is available from character select screen and onwards. Use this to limit recievers to be only the other characters logged into the same server.
+```
+/rcs <message>     - Send a command to the server channel excluding self
+/rcsa <message>    - Send a command to the server channel message including self
+/rct <name> <msg>  - Send a private message via the server channel
+
+```
+
+##### Zone Channel
+The zone channel is available once the character is registered as being ingame. Use this to limit recievers to be only the other characters who are in the same zone.
+```
+/rcz <message>     - Send a command to the zone channel excluding self
+/rcza <message>    - Send a command to the zone channel message including self
+```
+
+##### Group Channel
+The group channel is available whenever the character is in a group. Sends a command only to the characters in the same group.
+```
+/rcg <message>     - Send a command to the group channel excluding self
+/rcga <message>    - Send a command to the group channel message including self
+```
+
+##### Raid Channel
+The group channel is available whenever the character is in a raid. Sends a command only to the characters in the same raid.
+```
+/rcr <message>     - Send a command to the raid channel excluding self
+/rcra <message>    - Send a command to the raid channel message including self
+```
+
+#### Custom Channels
+You can also create and use custom channels dynamically. Channels may be marked as auto (default) or noauto to persist in settings if the channel should be automatically joined by the character.
+```
+# create
+/rcjoin <channel> [auto|noauto]
+
+#leave
+/rcleave <channel> [auto|noauto]
+
+#use
+/rcc <channel> <message>
 ```
 
 ### Configuration File
+A configuration file for storing custom channels that should be automatically joined has the following setup:
 
-Describe the configuration file and what the settings do
+```ini
+[Winnythepoo]
+honeyjar=1
+bees=0
 
-```yaml
-- Example goes here
+[Pigglet]
+forrest=1
 ```
 
-## Other Notes
+The ini is on a per serer basis: `MQRemote_SeverShortName.ini`
 
-Add additional notes
+### Examples
+Sending commands to other toons: 
+```
+/rct ToonName /sit
+/rct ToonName /stand
+/rct ToonName /macro ninjalooter
+/rct ToonName /endmacro
+```
+
+Make a channel called "clerics". On each character you want in the channel, type:
+```
+/rcjoin clerics noauto
+```
+
+To make all characters in the channel "clerics" say "I am a cleric",
+```
+/rcc clerics /say I am a cleric
+```
+
+Sending commands to all other connects clients: 
+```
+/rca /target id ${Me.ID}
+```
+
+To have the recieving client parse MQ data use `noparse`
+```
+/noparse /rcaa /echo I am ${Me.PctExp} into ${Me.Level}
+```
 
 ## Authors
+* PeonMQ - *Initial work*
 
-* **Your name** - *Initial work*
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/peonmq/mqremote/contributors.md) who participated in this project.
 
 ## Acknowledgments
-
-* Inspiration from...
-* I'd like to thank the Thieves' Guild for helping me with all the code I stole...
+* Inspiration from EQBC and MQ2DanNet

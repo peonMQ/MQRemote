@@ -1,12 +1,12 @@
-#include "SubscriptionController.h"
+#include "Channel.h"
 
 namespace remote {
-	void SubscriptionController::SendCommand(std::string command, bool includeSelf) {
-		auto channelName = GetChannelName();
+	void Channel::SendCommand(std::string command, bool includeSelf) {
+		auto channelName = DnsName();
 		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s) ]\ax \aw%s\ax", mqplugin::PluginName, channelName.c_str(), command.c_str());
 		postoffice::Address address;
 		address.Server = GetServerShortName();
-		if (m_channelSuffix.has_value())
+		if (!channelName.empty())
 		{
 			address.Mailbox = channelName;
 		}
@@ -17,13 +17,13 @@ namespace remote {
 		m_dropbox.Post(address, message);
 	}
 
-	void SubscriptionController::SendCommand(std::string receiver, std::string command) {
-		auto channelName = GetChannelName();
+	void Channel::SendCommand(std::string receiver, std::string command) {
+		auto channelName = DnsName();
 		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s) ]\ax \aw%s\ax", mqplugin::PluginName, receiver.c_str(), command.c_str());
 		postoffice::Address address;
 		address.Server = GetServerShortName();
 		address.Character = receiver;
-		if (m_channelPrefix.has_value())
+		if (!channelName.empty())
 		{
 			address.Mailbox = channelName;
 		}
@@ -35,10 +35,10 @@ namespace remote {
 			{
 				WriteChatf("\am[%s]\ax Failed sending command to \ay%s\ax.", mqplugin::PluginName, receiver.c_str());
 			}
-		});
+			});
 	}
 
-	void SubscriptionController::ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message)
+	void Channel::ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message)
 	{
 		if (GetGameState() != GAMESTATE_INGAME) return;
 		if (!pLocalPlayer) return;
@@ -48,24 +48,24 @@ namespace remote {
 		switch (msg.id())
 		{
 		case mq::proto::remote::MessageId::Broadcast:
+		{
+			if (message->Sender && message->Sender->Character.has_value())
 			{
-				if (message->Sender && message->Sender->Character.has_value())
-				{
-					auto character = message->Sender->Character.value();
-					if(character == pLocalPlayer->Name && msg.includeself() == false) return;
-				}
+				auto character = message->Sender->Character.value();
+				if (character == pLocalPlayer->Name && msg.includeself() == false) return;
+			}
 
-				DoCommand((PSPAWNINFO)pLocalPlayer, msg.command().c_str());
-			}
-			break; 
+			DoCommand((PSPAWNINFO)pLocalPlayer, msg.command().c_str());
+		}
+		break;
 		case mq::proto::remote::MessageId::Personal:
-			{
-				DoCommand((PSPAWNINFO)pLocalPlayer, msg.command().c_str());
-				proto::remote::Message reply;
-				reply.set_id(mq::proto::remote::MessageId::Success);
-				m_dropbox.PostReply(message, reply);
-			}
-			break;
+		{
+			DoCommand((PSPAWNINFO)pLocalPlayer, msg.command().c_str());
+			proto::remote::Message reply;
+			reply.set_id(mq::proto::remote::MessageId::Success);
+			m_dropbox.PostReply(message, reply);
+		}
+		break;
 		}
 	}
 

@@ -73,14 +73,14 @@
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
   </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="Channel.cpp" />
     <ClCompile Include="MQRemote.cpp" />
     <ClCompile Include="Remote.pb.cc" />
-    <ClCompile Include="SubscriptionController.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Channel.h" />
     <ClInclude Include="Remote.pb.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="SubscriptionController.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MQRemote.rc" />
