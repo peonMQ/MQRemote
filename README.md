@@ -53,13 +53,13 @@ The group channel is available whenever the character is in a raid. Sends a comm
 ```
 
 #### Custom Channels
-You can also create and use custom channels dynamically:
+You can also create and use custom channels dynamically. Channels may be marked as auto (default) or noauto to persist in settings if the channel should be automatically joined by the character.
 ```
 # create
-/rcjoin <channel>
+/rcjoin <channel> [auto|noauto]
 
 #leave
-/rcleave <channel>
+/rcleave <channel> [auto|noauto]
 
 #use
 /rcc <channel> <message>
@@ -69,9 +69,15 @@ You can also create and use custom channels dynamically:
 A configuration file for storing custom channels that should be automatically joined has the following setup:
 
 ```ini
-- Example goes here
+[Winnythepoo]
+honeyjar=1
+bees=0
+
+[Pigglet]
+forrest=1
 ```
 
+The ini is on a per serer basis: `MQRemote_SeverShortName.ini`
 
 ### Examples
 Sending commands to other toons: 
@@ -84,7 +90,7 @@ Sending commands to other toons:
 
 Make a channel called "clerics". On each character you want in the channel, type:
 ```
-/rcjoin clerics
+/rcjoin clerics noauto
 ```
 
 To make all characters in the channel "clerics" say "I am a cleric",

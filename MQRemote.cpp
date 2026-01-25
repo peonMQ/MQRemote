@@ -25,25 +25,32 @@ constexpr std::string_view ZONE_HELP = "/rcz <message>\n/rcza <message>";
 
 void RccCmd(PlayerClient* pcClient, char* szLine)
 {
-	CHAR szName[MAX_STRING] = { 0 };
-	GetArg(szName, szLine, 1);
-	std::string name(szName);
-	to_lower(name);
-	std::string message(szLine);
-	std::string::size_type n = message.find_first_not_of(" \t", 0);
-	n = message.find_first_of(" \t", n);
-	message.erase(0, message.find_first_not_of(" \t", n));
+	if (GetGameState() == GAMESTATE_INGAME)
+	{
+		CHAR szName[MAX_STRING] = { 0 };
+		GetArg(szName, szLine, 1);
+		std::string name(szName);
+		to_lower(name);
+		std::string message(szLine);
+		std::string::size_type n = message.find_first_not_of(" \t", 0);
+		n = message.find_first_of(" \t", n);
+		message.erase(0, message.find_first_not_of(" \t", n));
 
-	if (name.empty() || message.empty())
-	{
-		WriteChatf("\am[%s]\ax Syntax: /rcc <channel> <message> -- send message to channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
-	}
-	else
-	{
-		if (auto it = s_custom_channels.find(name); it != s_custom_channels.end()) {
-			std::string unescaped_message = unescape_args(message);
-			it->second.SendCommand(unescaped_message, false);
+		if (name.empty() || message.empty())
+		{
+			WriteChatf("\am[%s]\ax Syntax: /rcc <channel> <message> -- send message to channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
 		}
+		else
+		{
+			if (auto it = s_custom_channels.find(name); it != s_custom_channels.end()) 
+			{
+				std::string unescaped_message = unescape_args(message);
+				it->second.SendCommand(unescaped_message, false);
+			}
+		}
+	} else 
+	{
+		WriteChatf("\am[%s]\ax Can only join custom channels when you are ingame", mqplugin::PluginName, USERCOLOR_DEFAULT);
 	}
 }
 
@@ -155,13 +162,33 @@ void RcsaCmd(PlayerClient* pcClient, char* szLine)
 void RcJoinCmd(PlayerClient* pcClient, char* szLine)
 {
 	CHAR szName[MAX_STRING] = { 0 };
+	CHAR szAuto[MAX_STRING] = { 0 };
+
 	GetArg(szName, szLine, 1);
+	GetArg(szAuto, szLine, 2); // optional
+
+	bool auto_join = true; // default
+	if (szAuto[0])
+	{
+		std::string autoArg(szAuto);
+		to_lower(autoArg);
+
+		if (autoArg == "auto")
+		{
+			auto_join = true;
+		}
+		else if (autoArg == "noauto")
+		{
+			auto_join = false;
+		}
+	}
+
 	std::string name(szName);
 	to_lower(name);
 
 	if (name.empty())
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel> -- join channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
+		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
 		return;
 	}
 
@@ -170,18 +197,44 @@ void RcJoinCmd(PlayerClient* pcClient, char* szLine)
 	{
 		WriteChatf("\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name);
 	}
+	else if(auto_join) 
+	{
+		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+		WritePrivateProfileBool(pLocalPC->Name, name, true, INIFileName);
+		WriteChatf("\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+	}
 }
 
 void RcLeaveCmd(PlayerClient* pcClient, char* szLine)
 {
 	CHAR szName[MAX_STRING] = { 0 };
+	CHAR szAuto[MAX_STRING] = { 0 };
+
 	GetArg(szName, szLine, 1);
+	GetArg(szAuto, szLine, 2); // optional
+
+	bool auto_join = true; // default
+	if (szAuto[0])
+	{
+		std::string autoArg(szAuto);
+		to_lower(autoArg);
+
+		if (autoArg == "auto")
+		{
+			auto_join = true;
+		}
+		else if (autoArg == "noauto")
+		{
+			auto_join = false;
+		}
+	}
+
 	std::string name(szName);
 	to_lower(name);
 
 	if (name.empty())
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel> -- leave channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
+		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
 		return;
 	}
 
@@ -189,6 +242,16 @@ void RcLeaveCmd(PlayerClient* pcClient, char* szLine)
 		auto dns_name = it->second.DnsName();  // store value before erasing
 		s_custom_channels.erase(it);
 		WriteChatf("\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
+	}
+	
+	if (!auto_join)
+	{
+		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+		if (PrivateProfileKeyExists(pLocalPC->Name, name, INIFileName))
+		{
+			WritePrivateProfileBool(pLocalPC->Name, name, false, INIFileName);
+			WriteChatf("\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+		}
 	}
 }
 
@@ -332,6 +395,16 @@ void DrawSubscriptionsPanel()
 	}
 }
 
+void LoadAndJoinPersistentChannels()
+{
+	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+	auto channels = GetPrivateProfileKeys(pLocalPC->Name, INIFileName);
+	for (const auto& channel : channels) {
+		if(GetPrivateProfileValue(pLocalPC->Name, channel.c_str(), false, INIFileName)) {
+			s_custom_channels.try_emplace(channel, "custom", channel);
+		}
+	}
+}
 
 PLUGIN_API void InitializePlugin()
 {
@@ -344,6 +417,7 @@ PLUGIN_API void InitializePlugin()
 		to_lower(server);
 		s_server_channel.emplace("server", server);
 		s_zone_channel.emplace("zone", pZoneInfo->ShortName);
+		LoadAndJoinPersistentChannels();
 	}
 
 	AddCommand("/rct", RctCmd);
@@ -405,6 +479,7 @@ PLUGIN_API void SetGameState(int gameState)
 		s_group_channel.reset();
 		s_raid_channel.reset();
 		s_zone_channel.reset();
+		s_custom_channels.clear();
 	}
 
 	if (gameState > GAMESTATE_PRECHARSELECT) {
@@ -413,6 +488,11 @@ PLUGIN_API void SetGameState(int gameState)
 			to_lower(server);
 			s_server_channel.emplace("server", server);
 		}
+	}
+
+	if (gameState == GAMESTATE_INGAME)
+	{
+		LoadAndJoinPersistentChannels();
 	}
 }
 
@@ -440,11 +520,5 @@ PLUGIN_API void OnEndZone()
 	if (GetGameState() == GAMESTATE_INGAME) 
 	{
 		s_zone_channel.emplace("zone", pZoneInfo->ShortName);
-	}
-}
-
-PLUGIN_API void OnUpdateImGui() {
-	if (GetGameState() == GAMESTATE_INGAME) 
-	{
 	}
 }
