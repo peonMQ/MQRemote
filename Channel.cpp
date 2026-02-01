@@ -91,36 +91,37 @@ namespace remote {
 
 	void Channel::ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message)
 	{
-		if (GetGameState() != GAMESTATE_INGAME) 
-		{
-			return;
-		}
-
-		if (!pLocalPlayer) 
-		{
-			return;
-		}
-
 		mq::proto::remote::Message msg;
 		msg.ParseFromString(*message->Payload);
+
 		switch (msg.id())
 		{
 			case mq::proto::remote::MessageId::Broadcast:
 				{
 					if (message->Sender && message->Sender->Character.has_value())
 					{
-						auto character = message->Sender->Character.value();
-						if (character == pLocalPlayer->Name && msg.includeself() == false) return;
+						if (!pLocalPlayer)
+							return;
+
+						if (mq::ci_equals(message->Sender->Character.value(), pLocalPlayer->Name)
+							&& msg.includeself() == false)
+						{
+							return;
+						}
 					}
 
-					WriteChatf("\am[%s]\ax \a-t[ \ax\at<--\ax\a-t(%s<-%s) ]\ax \aw%s\ax", mqplugin::PluginName, m_dnsName.c_str(), message->Sender->Character.value().c_str(), msg.command().c_str());
-					DoCommand((PSPAWNINFO)pLocalPlayer, msg.command().c_str());
+					WriteChatf("\am[%s]\ax \a-t[ \ax\at<--\ax\a-t(%s<-%s) ]\ax \aw%s\ax", mqplugin::PluginName,
+						m_dnsName.c_str(), message->Sender->Character.value().c_str(), msg.command().c_str());
+					DoCommand(msg.command().c_str());
 				}
 				break;
+
 			case mq::proto::remote::MessageId::Personal:
 				{
-					WriteChatf("\am[%s]\ax \a-t[ \ax\at<--\ax\a-t(%s<-%s) ]\ax \aw%s\ax", mqplugin::PluginName, m_dnsName.c_str(), message->Sender->Character.value().c_str(), msg.command().c_str());
-					DoCommand((PSPAWNINFO)pLocalPlayer, msg.command().c_str());
+					WriteChatf("\am[%s]\ax \a-t[ \ax\at<--\ax\a-t(%s<-%s) ]\ax \aw%s\ax", mqplugin::PluginName,
+						m_dnsName.c_str(), message->Sender->Character.value().c_str(), msg.command().c_str());
+					DoCommand(msg.command().c_str());
+
 					proto::remote::Message reply;
 					reply.set_id(mq::proto::remote::MessageId::Success);
 					m_dropbox.PostReply(message, reply);
