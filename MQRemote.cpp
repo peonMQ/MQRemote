@@ -29,55 +29,6 @@ struct RemoteCommandArgs
 	std::string message;
 };
 
-RemoteCommandArgs ParseCommandLine2(const char* szLine)
-{
-	char messageBuf[MAX_STRING];
-	char argBuf[MAX_STRING];
-
-	messageBuf[0] = 0;
-	argBuf[0] = 0;
-
-	RemoteCommandArgs result;
-
-	// First arg
-	GetArg(argBuf, szLine, 1);
-	int channelArgIndex = 1;
-	if (!_stricmp(argBuf, "+self"))
-	{
-		result.includeSelf = true;
-		channelArgIndex = 2;
-
-		argBuf[0] = 0;
-		GetArg(argBuf, szLine, channelArgIndex);
-	}
-
-	std::string channelStr(argBuf);
-	to_lower(channelStr);
-
-	int tokensToSkip = channelArgIndex; // number of tokens before message
-	const char* msgStart = szLine;
-	int skipped = 0;
-	while (*msgStart && skipped < tokensToSkip)
-	{
-		// Skip leading spaces
-		while (*msgStart == ' ') ++msgStart;
-
-		// Skip one token (stop at space)
-		while (*msgStart && *msgStart != ' ') ++msgStart;
-
-		skipped++;
-	}
-
-	while (*msgStart == ' ') ++msgStart;
-
-	strncpy_s(messageBuf, msgStart, MAX_STRING - 1);
-
-	result.channel = channelStr;
-	result.message = messageBuf;
-
-	return result;
-}
-
 std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 {
 	if (!szLine || !*szLine)
