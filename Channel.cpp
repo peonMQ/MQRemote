@@ -41,25 +41,32 @@ namespace remote {
 		m_dropbox.Remove();
 	}
 
-	void Channel::SendCommand(const std::string_view command, const bool includeSelf)
+	void Channel::SendCommand(std::string command, const bool includeSelf)
 	{
-		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s) ]\ax \aw%.*s\ax", mqplugin::PluginName, m_dnsName.c_str(), static_cast<int>(command.length()), command.data());
+		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s) ]\ax \aw%s\ax", mqplugin::PluginName,
+			m_dnsName.c_str(), command.c_str());
+
 		postoffice::Address address;
 		address.Server = GetServerShortName();
+
 		if (!m_dnsName.empty())
 		{
 			address.Mailbox = m_dnsName;
 		}
+
 		proto::remote::Message message;
 		message.set_id(proto::remote::MessageId::Broadcast);
-		message.set_command(command.data(), command.size());
+		message.set_command(std::move(command));
 		message.set_includeself(includeSelf);
+
 		m_dropbox.Post(address, message);
 	}
 
-	void Channel::SendCommand(const std::string_view receiver, const std::string_view command) 
+	void Channel::SendCommand(std::string receiver, std::string command)
 	{
-		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s->%.*s) ]\ax \aw%.*s\ax", mqplugin::PluginName, m_dnsName.c_str(), static_cast<int>(receiver.length()), receiver.data(), static_cast<int>(command.length()), command.data());
+		WriteChatf("\am[%s]\ax \a-t[ \ax\at-->\ax\a-t(%s->%s) ]\ax \aw%s\ax", mqplugin::PluginName,
+			m_dnsName.c_str(), receiver.c_str(), command.c_str());
+
 		postoffice::Address address;
 		address.Server = GetServerShortName();
 		address.Character = std::string(receiver);
@@ -67,16 +74,19 @@ namespace remote {
 		{
 			address.Mailbox = m_dnsName;
 		}
+
 		proto::remote::Message message;
 		message.set_id(proto::remote::MessageId::Personal);
-		message.set_command(command.data(), command.size());
-		m_dropbox.Post(address, message, [receiverStr = std::string(receiver), dnsName = m_dnsName](int code, const std::shared_ptr<postoffice::Message>&) 
+		message.set_command(std::move(command));
+
+		m_dropbox.Post(address, message,
+			[receiverStr = std::move(receiver), dnsName = m_dnsName](int code, const std::shared_ptr<postoffice::Message>&) 
+		{
+			if (code < 0)
 			{
-				if (code < 0)
-				{
-					WriteChatf("\am[%s]\ax Failed sending command to \ay%s->%s\ax.", mqplugin::PluginName, dnsName.c_str(), receiverStr.c_str());
-				}
-			});
+				WriteChatf("\am[%s]\ax Failed sending command to \ay%s->%s\ax.", mqplugin::PluginName, dnsName.c_str(), receiverStr.c_str());
+			}
+		});
 	}
 
 	void Channel::ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message)

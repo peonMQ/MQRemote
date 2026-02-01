@@ -165,15 +165,15 @@ void RcCmd(const PlayerClient* pcClient, const char* szLine)
 		return;
 	}
 
-	if (auto channel = FindChannel(commandArgs->channel))
+	if (remote::Channel* channel = FindChannel(commandArgs->channel))
 	{
 		std::string unescaped_message = unescape_args(commandArgs->message);
-		channel->SendCommand(unescaped_message, commandArgs->includeSelf);
+		channel->SendCommand(std::move(unescaped_message), commandArgs->includeSelf);
 	}
-	else if(s_server_channel)
+	else if (s_server_channel)
 	{
 		std::string unescaped_message = unescape_args(commandArgs->message);
-		s_server_channel->SendCommand(commandArgs->channel, unescaped_message);
+		s_server_channel->SendCommand(commandArgs->channel, std::move(unescaped_message));
 	}
 }
 
