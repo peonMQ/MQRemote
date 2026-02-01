@@ -1,26 +1,27 @@
-﻿#include <mq/Plugin.h>
-#include "routing/PostOffice.h"
+﻿
 #include "Channel.h"
 
-using namespace mq::proto::remote;
-using namespace remote;
+#include "routing/PostOffice.h"
+#include "mq/Plugin.h"
 
 PreSetup("MQRemote");
 PLUGIN_VERSION(0.1);
 
-const std::chrono::milliseconds UPDATE_TICK_MILLISECONDS = std::chrono::milliseconds(1000); 
-std::optional<remote::Channel> s_global_channel;
-std::optional<remote::Channel> s_server_channel;
-std::optional<remote::Channel> s_group_channel;
-std::optional<remote::Channel> s_raid_channel;
-std::optional<remote::Channel> s_zone_channel;
-std::unordered_map<std::string, remote::Channel> s_custom_channels = {};
+constexpr std::chrono::milliseconds UPDATE_TICK_MILLISECONDS{ 1000 };
 
 constexpr std::string_view GLOBAL_HELP = "/rc [+self] global <message>";
 constexpr std::string_view SERVER_HELP = "/rc [+self] server <message>\n/rc <character> <message>";
 constexpr std::string_view GROUP_HELP = "/rc [+self] group <message>";
 constexpr std::string_view RAID_HELP = "/rc [+self] raid <message>";
 constexpr std::string_view ZONE_HELP = "/rc [+self] zone <message>";
+
+static std::optional<remote::Channel> s_global_channel;
+static std::optional<remote::Channel> s_server_channel;
+static std::optional<remote::Channel> s_group_channel;
+static std::optional<remote::Channel> s_raid_channel;
+static std::optional<remote::Channel> s_zone_channel;
+
+static mq::ci_unordered::map<std::string, remote::Channel> s_custom_channels;
 
 struct RemoteCommandArgs
 {
@@ -29,7 +30,7 @@ struct RemoteCommandArgs
 	std::string message;
 };
 
-std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
+static std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 {
 	if (!szLine || !*szLine)
 	{
@@ -38,8 +39,9 @@ std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 
 	RemoteCommandArgs result{};
 	std::string_view line(szLine);
-	auto args = tokenize_args(line);
+	std::vector<std::string_view> args = tokenize_args(line);
 	size_t i = 0;
+
 	// Optional +self
 	if (i < args.size() && args[i] == "+self")
 	{
@@ -47,29 +49,21 @@ std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 		++i;
 	}
 
-	if (i >= args.size()) 
+	if (i + 1 >= args.size()) 
 	{
 		return std::nullopt;
 	}
 
-	result.channel.assign(args[i].data(), args[i].size());
-	to_lower(result.channel);
+	result.channel = mq::to_lower_copy(args[i]);
 	++i;
 
-	if (i >= args.size()) 
-	{
-		return std::nullopt;
-	}
-
 	// Message = remainder of original line starting at first message token
-	const char* msgStart = args[i].data();
-	const char* lineEnd = line.data() + line.size();
-	result.message.assign(msgStart, lineEnd - msgStart);
+	result.message = line.substr(args[i].data() - line.data());
 
 	return result;
 }
 
-remote::Channel* FindChannel(const std::string_view name)
+static remote::Channel* FindChannel(std::string_view name)
 {
 	// Built-in channels
 	if (s_global_channel && s_global_channel->GetName() == name)
@@ -97,7 +91,7 @@ remote::Channel* FindChannel(const std::string_view name)
 		return &*s_zone_channel;
 	}
 
-	// Custom channels (requires std::string key)
+	// Custom channels (prior to c++20, requires std::string key)
 	auto it = s_custom_channels.find(std::string(name));
 	if (it != s_custom_channels.end())
 	{
@@ -107,12 +101,12 @@ remote::Channel* FindChannel(const std::string_view name)
 	return nullptr;
 }
 
-void RcCmd(const PlayerClient* pcClient, const char* szLine)
+static void RcCmd(const PlayerClient*, const char* szLine)
 {
 	auto commandArgs = GetRemoteCommandArgs(szLine);
 	if (!commandArgs)
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> <message>", mqplugin::PluginName, USERCOLOR_DEFAULT);
+		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> <message>", mqplugin::PluginName);
 		return;
 	}
 
@@ -128,10 +122,10 @@ void RcCmd(const PlayerClient* pcClient, const char* szLine)
 	}
 }
 
-void RcJoinCmd(const PlayerClient* pcClient, const char* szLine)
+static void RcJoinCmd(const PlayerClient*, const char* szLine)
 {
-	CHAR szName[MAX_STRING] = { 0 };
-	CHAR szAuto[MAX_STRING] = { 0 };
+	char szName[MAX_STRING] = { 0 };
+	char szAuto[MAX_STRING] = { 0 };
 
 	GetArg(szName, szLine, 1);
 	GetArg(szAuto, szLine, 2); // optional
@@ -152,21 +146,20 @@ void RcJoinCmd(const PlayerClient* pcClient, const char* szLine)
 		}
 	}
 
-	std::string name(szName);
-	to_lower(name);
+	std::string name = mq::to_lower_copy(szName);
 
 	if (name.empty())
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
+		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName);
 		return;
 	}
 
-	auto [it, inserted] = s_custom_channels.try_emplace(name, "custom", name);
+	auto [_, inserted] = s_custom_channels.try_emplace(name, "custom", name);
 	if (!inserted)
 	{
-		WriteChatf("\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name);
+		WriteChatf("\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name.c_str());
 	}
-	else if(auto_join) 
+	else if (auto_join) 
 	{
 		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
 		WritePrivateProfileBool(pLocalPC->Name, name, true, INIFileName);
@@ -174,10 +167,10 @@ void RcJoinCmd(const PlayerClient* pcClient, const char* szLine)
 	}
 }
 
-void RcLeaveCmd(const PlayerClient* pcClient, const char* szLine)
+static void RcLeaveCmd(const PlayerClient*, const char* szLine)
 {
-	CHAR szName[MAX_STRING] = { 0 };
-	CHAR szAuto[MAX_STRING] = { 0 };
+	char szName[MAX_STRING] = { 0 };
+	char szAuto[MAX_STRING] = { 0 };
 
 	GetArg(szName, szLine, 1);
 	GetArg(szAuto, szLine, 2); // optional
@@ -185,31 +178,29 @@ void RcLeaveCmd(const PlayerClient* pcClient, const char* szLine)
 	bool auto_join = true; // default
 	if (szAuto[0])
 	{
-		std::string autoArg(szAuto);
-		to_lower(autoArg);
-
-		if (autoArg == "auto")
+		if (ci_equals(szAuto, "auto"))
 		{
 			auto_join = true;
 		}
-		else if (autoArg == "noauto")
+		else if (ci_equals(szAuto, "noauto"))
 		{
 			auto_join = false;
 		}
 	}
 
-	std::string name(szName);
-	to_lower(name);
+	std::string name = mq::to_lower_copy(szName);
 
 	if (name.empty())
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName, USERCOLOR_DEFAULT);
+		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName);
 		return;
 	}
 
-	if (auto it = s_custom_channels.find(name); it != s_custom_channels.end()) {
+	if (auto it = s_custom_channels.find(name); it != s_custom_channels.end())
+	{
 		auto dns_name = std::string(it->second.GetDnsName());  // store value before erasing
 		s_custom_channels.erase(it);
+
 		WriteChatf("\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
 	}
 	
@@ -224,7 +215,7 @@ void RcLeaveCmd(const PlayerClient* pcClient, const char* szLine)
 	}
 }
 
-const char* GetGroupLeaderName()
+static const char* GetGroupLeaderName()
 {
 	if (pLocalPC
 		&& pLocalPC->pGroupInfo
@@ -235,7 +226,7 @@ const char* GetGroupLeaderName()
 	return nullptr;
 }
 
-const char* GetRaidLeaderName()
+static const char* GetRaidLeaderName()
 {
 	if (pRaid && pRaid->RaidLeaderName[0])
 	{
@@ -244,7 +235,7 @@ const char* GetRaidLeaderName()
 	return nullptr;
 }
 
-void UpdateGroupChannel()
+static void UpdateGroupChannel()
 {
 	const char* leaderName = GetGroupLeaderName();
 
@@ -261,7 +252,7 @@ void UpdateGroupChannel()
 	}
 }
 
-void UpdateRaidChannel()
+static void UpdateRaidChannel()
 {
 	const char* leaderName = GetRaidLeaderName();
 
@@ -280,7 +271,7 @@ void UpdateRaidChannel()
 	}
 }
 
-bool DrawCustomChannelRow(const remote::Channel& controller, const std::string_view helpText, const bool canLeave = false)
+static bool DrawCustomChannelRow(const remote::Channel& controller, const std::string_view& helpText, const bool canLeave = false)
 {
 	bool erase_this = false;
 	std::string_view dnsName = controller.GetDnsName();
@@ -312,12 +303,10 @@ bool DrawCustomChannelRow(const remote::Channel& controller, const std::string_v
 	return erase_this;
 }
 
-
-// Buffer for new channel input
-static char newChannelBuf[128] = "";
-
-void DrawSubscriptionsPanel()
+static void DrawSubscriptionsPanel()
 {
+	static char newChannelBuf[128] = "";
+
 	// --- Add new channel section ---
 	ImGui::Text("Add New Channel");
 	ImGui::SameLine();
@@ -326,11 +315,10 @@ void DrawSubscriptionsPanel()
 	ImGui::SameLine();
 	if (ImGui::Button("Add"))
 	{
-		std::string channelName = newChannelBuf;
-		if (!channelName.empty())
+		if (newChannelBuf[0])
 		{
 			RcJoinCmd(nullptr, newChannelBuf);
-			newChannelBuf[0] = '\0'; // Clear input
+			newChannelBuf[0] = '\0';
 		}
 	}
 
@@ -340,7 +328,7 @@ void DrawSubscriptionsPanel()
 		// Table headers
 		ImGui::TableSetupColumn("Channel");
 		ImGui::TableSetupColumn("Usage");
-		ImGui::TableSetupColumn(""); // empty header
+		ImGui::TableSetupColumn("");
 		ImGui::TableHeadersRow();
 
 		if (s_global_channel) 
@@ -368,24 +356,28 @@ void DrawSubscriptionsPanel()
 		for (auto it = s_custom_channels.begin(); it != s_custom_channels.end(); )
 		{
 			std::string help = fmt::format("/rc [+self] {} <message>", it->first);
+
 			if (DrawCustomChannelRow(it->second, help, true))
 				it = s_custom_channels.erase(it);
 			else
 				++it;
 		}
 
-
 		ImGui::EndTable();
 	}
 }
 
-void LoadAndJoinPersistentChannels()
+static void LoadAndJoinPersistentChannels()
 {
+	if (!pLocalPC)
+		return;
+
 	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+
 	auto channels = GetPrivateProfileKeys(pLocalPC->Name, INIFileName);
 	for (const auto& channel : channels) 
 	{
-		if(GetPrivateProfileValue(pLocalPC->Name, channel.c_str(), false, INIFileName)) 
+		if (GetPrivateProfileValue(pLocalPC->Name, channel.c_str(), false, INIFileName)) 
 		{
 			s_custom_channels.try_emplace(channel, "custom", channel);
 		}
@@ -394,15 +386,14 @@ void LoadAndJoinPersistentChannels()
 
 PLUGIN_API void InitializePlugin()
 {
-	DebugSpewAlways("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
 	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
 	s_global_channel.emplace("global");
+
 	if (GetGameState() == GAMESTATE_INGAME) 
 	{
-		std::string server = GetServerShortName();
-		to_lower(server);
-		s_server_channel.emplace("server", server);
+		s_server_channel.emplace("server", mq::to_lower_copy(GetServerShortName()));
 		s_zone_channel.emplace("zone", pZoneInfo->ShortName);
+
 		LoadAndJoinPersistentChannels();
 	}
 
@@ -415,7 +406,6 @@ PLUGIN_API void InitializePlugin()
 
 PLUGIN_API void ShutdownPlugin()
 {
-	DebugSpewAlways("\am[%s]\ax Shutting down", mqplugin::PluginName);
 	WriteChatf("\am[%s]\ax Shutting down", mqplugin::PluginName);
 
 	s_global_channel.reset();
@@ -444,11 +434,11 @@ PLUGIN_API void SetGameState(int gameState)
 		s_custom_channels.clear();
 	}
 
-	if (gameState > GAMESTATE_PRECHARSELECT) {
-		if (!s_server_channel) {
-			std::string server = GetServerShortName();
-			to_lower(server);
-			s_server_channel.emplace("server", server);
+	if (gameState > GAMESTATE_PRECHARSELECT)
+	{
+		if (!s_server_channel)
+		{
+			s_server_channel.emplace("server", mq::to_lower_copy(GetServerShortName()));
 		}
 	}
 
@@ -458,7 +448,8 @@ PLUGIN_API void SetGameState(int gameState)
 	}
 }
 
-PLUGIN_API void OnPulse() {
+PLUGIN_API void OnPulse()
+{
 	static std::chrono::steady_clock::time_point s_pulse_timer = std::chrono::steady_clock::now();
 
 	if (GetGameState() == GAMESTATE_INGAME) 

@@ -1,6 +1,7 @@
 ﻿#pragma once
-#include <mq/Plugin.h>
+
 #include "Remote.pb.h"
+#include "mq/Plugin.h"
 
 namespace remote {
 
@@ -29,5 +30,5 @@ namespace remote {
 		const std::string m_dnsName;
 		postoffice::DropboxAPI m_dropbox;
 	};
-}
 
+} // namespace remote
