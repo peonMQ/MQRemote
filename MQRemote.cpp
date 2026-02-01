@@ -121,27 +121,27 @@ std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 remote::Channel* FindChannel(const std::string_view name)
 {
 	// Built-in channels
-	if (s_global_channel && s_global_channel->Name() == name)
+	if (s_global_channel && s_global_channel->GetName() == name)
 	{
 		return &*s_global_channel;
 	}
 
-	if (s_server_channel && s_server_channel->Name() == name)
+	if (s_server_channel && s_server_channel->GetName() == name)
 	{
 		return &*s_server_channel;
 	}
 
-	if (s_group_channel && s_group_channel->Name() == name)
+	if (s_group_channel && s_group_channel->GetName() == name)
 	{
 		return &*s_group_channel;
 	}
 
-	if (s_raid_channel && s_raid_channel->Name() == name)
+	if (s_raid_channel && s_raid_channel->GetName() == name)
 	{
 		return &*s_raid_channel;
 	}
 
-	if (s_zone_channel && s_zone_channel->Name() == name)
+	if (s_zone_channel && s_zone_channel->GetName() == name)
 	{
 		return &*s_zone_channel;
 	}
@@ -257,7 +257,7 @@ void RcLeaveCmd(const PlayerClient* pcClient, const char* szLine)
 	}
 
 	if (auto it = s_custom_channels.find(name); it != s_custom_channels.end()) {
-		auto dns_name = std::string(it->second.DnsName());  // store value before erasing
+		auto dns_name = std::string(it->second.GetDnsName());  // store value before erasing
 		s_custom_channels.erase(it);
 		WriteChatf("\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
 	}
@@ -298,7 +298,7 @@ void UpdateGroupChannel()
 	{
 		std::string leader_lower = leaderName;
 		to_lower(leader_lower);
-		if (!s_group_channel || s_group_channel->SubName() != leader_lower) 
+		if (!s_group_channel || s_group_channel->GetSubName() != leader_lower)
 		{
 			s_group_channel.emplace("group", leader_lower);
 		}
@@ -316,7 +316,7 @@ void UpdateRaidChannel()
 	{
 		std::string leader_lower = leaderName;
 		to_lower(leader_lower);
-		if (!s_raid_channel || s_raid_channel->SubName() != leader_lower) 
+		if (!s_raid_channel || s_raid_channel->GetSubName() != leader_lower)
 		{
 			s_raid_channel.emplace("raid", leader_lower);
 		}
@@ -330,18 +330,19 @@ void UpdateRaidChannel()
 bool DrawCustomChannelRow(const remote::Channel& controller, const std::string_view helpText, const bool canLeave = false)
 {
 	bool erase_this = false;
+	std::string_view dnsName = controller.GetDnsName();
 
-	ImGui::PushID((const void*)controller.DnsName().data());
+	ImGui::PushID(dnsName.data(), dnsName.data() + dnsName.size());
 
 	ImGui::TableNextRow();
 
 	// Column 0: Channel name
 	ImGui::TableSetColumnIndex(0);
-	ImGui::Text("%.*s", (int)controller.DnsName().size(), controller.DnsName().data());
+	ImGui::Text("%.*s", (int)dnsName.size(), dnsName.data());
 
 	// Column 1: Command help
 	ImGui::TableSetColumnIndex(1);
-	ImGui::Text("%s", helpText.data());
+	ImGui::Text("%.*s", (int)helpText.size(), helpText.data());
 
 	if (canLeave) 
 	{

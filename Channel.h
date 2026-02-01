@@ -12,9 +12,10 @@ namespace remote {
 
 		void SendCommand(std::string command, bool includeSelf);
 		void SendCommand(std::string reciever, std::string command);
-		std::string_view Name() const { return m_name; }
-		std::string_view SubName() const { return m_sub_name; }
-		std::string_view DnsName() const noexcept { return m_dnsName;}
+
+		std::string_view GetName() const { return m_name; }
+		std::string_view GetSubName() const { return m_sub_name; }
+		std::string_view GetDnsName() const { return m_dnsName;}
 
 		// Delete copy constructor/assignment
 		Channel(const Channel&) = delete;
