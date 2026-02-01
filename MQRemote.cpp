@@ -49,7 +49,7 @@ std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 
 	if (i >= args.size()) 
 	{
-		std::nullopt;
+		return std::nullopt;
 	}
 
 	result.channel.assign(args[i].data(), args[i].size());
