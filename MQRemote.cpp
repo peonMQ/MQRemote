@@ -273,34 +273,35 @@ void RcLeaveCmd(const PlayerClient* pcClient, const char* szLine)
 	}
 }
 
-const char* GetGroupLeader() {
-    if (pLocalPC &&
-        pLocalPC->pGroupInfo &&
-        pLocalPC->pGroupInfo->pLeader)
-    {
-        return pLocalPC->pGroupInfo->pLeader->Name.c_str();
-    }
-    return nullptr;
+const char* GetGroupLeaderName()
+{
+	if (pLocalPC
+		&& pLocalPC->pGroupInfo
+		&& pLocalPC->pGroupInfo->pLeader)
+	{
+		return pLocalPC->pGroupInfo->pLeader->Name.c_str();
+	}
+	return nullptr;
 }
 
-const char* GetRaidLeader() {
-    if (pRaid && pRaid->RaidLeaderName[0]) 
+const char* GetRaidLeaderName()
+{
+	if (pRaid && pRaid->RaidLeaderName[0])
 	{
-        return pRaid->RaidLeaderName;
-    }
-    return nullptr;
+		return pRaid->RaidLeaderName;
+	}
+	return nullptr;
 }
 
 void UpdateGroupChannel()
 {
-	char* leaderName = const_cast<char*>(GetGroupLeader());
+	const char* leaderName = GetGroupLeaderName();
+
 	if (leaderName && leaderName[0]) 
 	{
-		std::string leader_lower = leaderName;
-		to_lower(leader_lower);
-		if (!s_group_channel || s_group_channel->GetSubName() != leader_lower)
+		if (!s_group_channel || !ci_equals(s_group_channel->GetSubName(), leaderName))
 		{
-			s_group_channel.emplace("group", leader_lower);
+			s_group_channel.emplace("group", mq::to_lower_copy(leaderName));
 		}
 	}
 	else if (s_group_channel)
@@ -311,14 +312,15 @@ void UpdateGroupChannel()
 
 void UpdateRaidChannel()
 {
-	char* leaderName = const_cast<char*>(GetRaidLeader());
+	const char* leaderName = GetRaidLeaderName();
+
 	if (leaderName && leaderName[0]) 
 	{
 		std::string leader_lower = leaderName;
 		to_lower(leader_lower);
-		if (!s_raid_channel || s_raid_channel->GetSubName() != leader_lower)
+		if (!s_raid_channel || !ci_equals(s_raid_channel->GetSubName(), leaderName))
 		{
-			s_raid_channel.emplace("raid", leader_lower);
+			s_raid_channel.emplace("raid", mq::to_lower_copy(leaderName));
 		}
 	}
 	else if (s_raid_channel)
