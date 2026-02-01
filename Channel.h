@@ -17,18 +17,13 @@ namespace remote {
 		std::string_view GetSubName() const { return m_sub_name; }
 		std::string_view GetDnsName() const { return m_dnsName;}
 
-		// Delete copy constructor/assignment
+		// non-copyable
 		Channel(const Channel&) = delete;
 		Channel& operator=(const Channel&) = delete;
-
-		// Default move constructor/assignment
-		Channel(Channel&&) = default;
-		Channel& operator=(Channel&&) = default;
 
 	private:
 		void ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message);
 
-	private:
 		const std::string m_name;
 		const std::string m_sub_name;
 		const std::string m_dnsName;
