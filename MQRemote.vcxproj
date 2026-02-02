@@ -74,6 +74,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ClCompile Include="Channel.cpp" />
+    <ClCompile Include="ChannelManager.cpp" />
     <ClCompile Include="MQRemote.cpp" />
     <ClCompile Include="Remote.pb.cc">
       <DependentUpon>Remote.proto</DependentUpon>
@@ -82,6 +83,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Channel.h" />
+    <ClInclude Include="ChannelManager.h" />
     <ClInclude Include="Remote.pb.h">
       <DependentUpon>Remote.proto</DependentUpon>
     </ClInclude>
