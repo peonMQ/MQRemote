@@ -15,7 +15,7 @@ constexpr std::string_view GROUP_HELP = "/rc [+self] group <message>";
 constexpr std::string_view RAID_HELP = "/rc [+self] raid <message>";
 constexpr std::string_view ZONE_HELP = "/rc [+self] zone <message>";
 
-static remote::ChannelManager* gChannels = new remote::ChannelManager();
+static remote::ChannelManager* gChannels = nullptr;
 
 struct RemoteCommandArgs
 {
@@ -268,7 +268,8 @@ static void DrawSubscriptionsPanel()
 PLUGIN_API void InitializePlugin()
 {
 	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
-	
+
+	gChannels = new remote::ChannelManager();
 	gChannels->Initialize();
 
 	AddCommand("/rc", RcCmd);
@@ -283,6 +284,7 @@ PLUGIN_API void ShutdownPlugin()
 	WriteChatf("\am[%s]\ax Shutting down", mqplugin::PluginName);
 
 	gChannels->Shutdown();
+	delete gChannels;
 
 	RemoveMQ2Data("Remote");
 
