@@ -20,6 +20,8 @@ public:
 	void OnEndZone();
 
 	// channels
+	void JoinCustomChannel(std::string_view name, std::string_view autoArg);
+	void LeaveCustomChannel(std::string_view name, std::string_view autoArg);
 	Channel* FindChannel(std::string_view name);
 
 	Channel* GetGlobalChannel() { return opt_ptr(m_global_channel); }

@@ -53,6 +53,83 @@ void ChannelManager::Shutdown()
 	m_custom_channels.clear();
 }
 
+void ChannelManager::JoinCustomChannel(std::string_view nameArg, std::string_view autoArg)
+{
+	bool auto_join = true; // default
+	if (!autoArg.empty())
+	{
+		if (ci_equals(autoArg, "auto"))
+		{
+			auto_join = true;
+		}
+		else if (ci_equals(autoArg, "noauto"))
+		{
+			auto_join = false;
+		}
+	}
+
+	if (nameArg.empty())
+	{
+		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName);
+		return;
+	}
+
+	std::string name = mq::to_lower_copy(nameArg);
+	auto [_, inserted] = m_custom_channels.try_emplace(name, "custom", name);
+	if (!inserted)
+	{
+		WriteChatf("\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name.c_str());
+	}
+	
+	if (auto_join)
+	{
+		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+		WritePrivateProfileBool(pLocalPC->Name, name, true, INIFileName);
+		WriteChatf("\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+	}
+}
+
+void ChannelManager::LeaveCustomChannel(std::string_view nameArg, std::string_view autoArg)
+{
+	bool auto_join = true; // default
+	if (!autoArg.empty())
+	{
+		if (ci_equals(autoArg, "auto"))
+		{
+			auto_join = true;
+		}
+		else if (ci_equals(autoArg, "noauto"))
+		{
+			auto_join = false;
+		}
+	}
+
+	if (nameArg.empty())
+	{
+		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName);
+		return;
+	}
+
+	std::string name = mq::to_lower_copy(nameArg);
+	if (auto it = m_custom_channels.find(name); it != m_custom_channels.end())
+	{
+		auto dns_name = std::string(it->second.GetDnsName());  // store value before erasing
+		m_custom_channels.erase(it);
+
+		WriteChatf("\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
+	}
+
+	if (!auto_join)
+	{
+		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+		if (PrivateProfileKeyExists(pLocalPC->Name, name, INIFileName))
+		{
+			WritePrivateProfileBool(pLocalPC->Name, name, false, INIFileName);
+			WriteChatf("\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+		}
+	}
+}
+
 remote::Channel* ChannelManager::FindChannel(std::string_view name)
 {
 	if (m_global_channel && m_global_channel->GetName() == name) 

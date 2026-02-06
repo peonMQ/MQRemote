@@ -21,7 +21,7 @@ struct RemoteCommandArgs
 {
 	bool includeSelf = false;
 	std::string channel;
-	std::string message;
+	std::string_view message;
 };
 
 static std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
@@ -66,17 +66,17 @@ static void RcCmd(const PlayerClient*, const char* szLine)
 		return;
 	}
 
-	if (remote::Channel* channel = gChannels->FindChannel(commandArgs->channel))
+	auto* channel = gChannels->FindChannel(commandArgs->channel);
+	if (!channel) // No valid channel available
 	{
-		std::string unescaped_message = unescape_args(commandArgs->message);
-		channel->SendCommand(std::move(unescaped_message), commandArgs->includeSelf);
+		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> <message>", mqplugin::PluginName);
+		return;
 	}
-	else if (gChannels->GetServerChannel())
-	{
-		std::string unescaped_message = unescape_args(commandArgs->message);
-		gChannels->GetServerChannel()->SendCommand(commandArgs->channel, std::move(unescaped_message));
-	}
+
+	std::string unescaped = unescape_args(commandArgs->message);
+	channel->SendCommand(std::move(unescaped), commandArgs->includeSelf);
 }
+
 
 static void RcJoinCmd(const PlayerClient*, const char* szLine)
 {
@@ -86,40 +86,7 @@ static void RcJoinCmd(const PlayerClient*, const char* szLine)
 	GetArg(szName, szLine, 1);
 	GetArg(szAuto, szLine, 2); // optional
 
-	bool auto_join = true; // default
-	if (szAuto[0])
-	{
-		std::string autoArg(szAuto);
-		to_lower(autoArg);
-
-		if (autoArg == "auto")
-		{
-			auto_join = true;
-		}
-		else if (autoArg == "noauto")
-		{
-			auto_join = false;
-		}
-	}
-
-	std::string name = mq::to_lower_copy(szName);
-	if (name.empty())
-	{
-		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName);
-		return;
-	}
-
-	auto [_, inserted] = gChannels->GetCustomChannels().try_emplace(name, "custom", name);
-	if (inserted)
-	{
-		WriteChatf("\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name.c_str());
-	}
-	else if (auto_join) 
-	{
-		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
-		WritePrivateProfileBool(pLocalPC->Name, name, true, INIFileName);
-		WriteChatf("\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
-	}
+	gChannels->JoinCustomChannel(szName, szAuto);
 }
 
 static void RcLeaveCmd(const PlayerClient*, const char* szLine)
@@ -130,43 +97,7 @@ static void RcLeaveCmd(const PlayerClient*, const char* szLine)
 	GetArg(szName, szLine, 1);
 	GetArg(szAuto, szLine, 2); // optional
 
-	bool auto_join = true; // default
-	if (szAuto[0])
-	{
-		if (ci_equals(szAuto, "auto"))
-		{
-			auto_join = true;
-		}
-		else if (ci_equals(szAuto, "noauto"))
-		{
-			auto_join = false;
-		}
-	}
-
-	std::string name = mq::to_lower_copy(szName);
-	if (name.empty())
-	{
-		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName);
-		return;
-	}
-
-	if (auto it = gChannels->GetCustomChannels().find(name); it != gChannels->GetCustomChannels().end())
-	{
-		auto dns_name = std::string(it->second.GetDnsName());  // store value before erasing
-		gChannels->GetCustomChannels().erase(it);
-
-		WriteChatf("\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
-	}
-	
-	if (!auto_join)
-	{
-		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
-		if (PrivateProfileKeyExists(pLocalPC->Name, name, INIFileName))
-		{
-			WritePrivateProfileBool(pLocalPC->Name, name, false, INIFileName);
-			WriteChatf("\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
-		}
-	}
+	gChannels->LeaveCustomChannel(szName, szAuto);
 }
 
 static bool DrawCustomChannelRow(const remote::Channel& controller, const std::string_view& helpText, const bool canLeave = false)
