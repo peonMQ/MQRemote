@@ -74,12 +74,19 @@
   </PropertyGroup>
   <ItemGroup>
     <ClCompile Include="Channel.cpp" />
+    <ClCompile Include="ChannelManager.cpp" />
     <ClCompile Include="MQRemote.cpp" />
-    <ClCompile Include="Remote.pb.cc" />
+    <ClCompile Include="Remote.pb.cc">
+      <DependentUpon>Remote.proto</DependentUpon>
+      <DisableSpecificWarnings>4267</DisableSpecificWarnings>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Channel.h" />
-    <ClInclude Include="Remote.pb.h" />
+    <ClInclude Include="ChannelManager.h" />
+    <ClInclude Include="Remote.pb.h">
+      <DependentUpon>Remote.proto</DependentUpon>
+    </ClInclude>
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
