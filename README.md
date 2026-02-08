@@ -16,11 +16,13 @@ MQRemote supports multiple logical communication channels. All commands use the 
 
 #### Built-in Channels
 All channels follow the pattern of `/rc [+self] <channel> <message>` where `+self` is optional.
+or `/rc <channel> <character> <message>` to send a tell to just that character in a channel (most used will probably be server channel).
 ##### Global Channel
 The global channel is always available
 ```
 /rc global <message>        - Send a command to the global channel excluding self
 /rc +self global <message>  - Send a command to the global channel message including self
+/rc global name <message>   - Send a command to the global channel to the specific named character
 ```
 
 ##### Server Channel
@@ -28,7 +30,7 @@ The server channel is available from character select screen and onwards. Use th
 ```
 /rc server <message>        - Send a command to the server channel excluding self
 /rc +self server <message>  - Send a command to the server channel message including self
-/rc <name> <message>        - Send a private message via the server channel
+/rc server name <message>   - Send a command to the server channel to the specific named character
 
 ```
 
@@ -37,6 +39,7 @@ The zone channel is available once the character is registered as being ingame. 
 ```
 /rc zone <message>        - Send a command to the zone channel excluding self
 /rc +self zone <message>  - Send a command to the zone channel message including self
+/rc zone name <message>   - Send a command to the zone channel to the specific named character
 ```
 
 ##### Group Channel
@@ -44,6 +47,7 @@ The group channel is available whenever the character is in a group. Sends a com
 ```
 /rc group <message>        - Send a command to the group channel excluding self
 /rc +self group <message>  - Send a command to the group channel message including self
+/rc group name <message>   - Send a command to the group channel to the specific named character
 ```
 
 ##### Raid Channel
@@ -51,6 +55,7 @@ The group channel is available whenever the character is in a raid. Sends a comm
 ```
 /rc raid <message>        - Send a command to the raid channel excluding self
 /rc +self raid <message>  - Send a command to the raid channel message including self
+/rc raid name <message>   - Send a command to the raid channel to the specific named character
 ```
 
 #### Custom Channels
@@ -64,6 +69,7 @@ You can also create and use custom channels dynamically. Channels may be marked 
 
 #use
 /rc [+self] <channel> <message>
+/rc <channel> <name> <message>
 ```
 
 ### Configuration File
@@ -83,10 +89,10 @@ The ini is on a per serer basis: `MQRemote_SeverShortName.ini`
 ### Examples
 Sending commands to other toons: 
 ```
-/rc ToonName /sit
-/rc ToonName /stand
-/rc ToonName /macro ninjalooter
-/rc ToonName /endmacro
+/rc server ToonName /sit
+/rc server ToonName /stand
+/rc server ToonName /macro ninjalooter
+/rc server ToonName /endmacro
 ```
 
 Make a channel called "clerics". On each character you want in the channel, type:
