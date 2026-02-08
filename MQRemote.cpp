@@ -21,7 +21,8 @@ struct RemoteCommandArgs
 {
 	bool includeSelf = false;
 	std::string channel;
-	std::string_view message;
+	std::optional<std::string> receiver;   // NEW optional receiver
+	std::string message;
 };
 
 static std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
@@ -43,16 +44,32 @@ static std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 		++i;
 	}
 
-	if (i + 1 >= args.size()) 
+	// Need at least channel + message
+	if (i + 1 >= args.size())
 	{
 		return std::nullopt;
 	}
 
+	// Parse channel
 	result.channel = mq::to_lower_copy(args[i]);
 	++i;
 
+	// Optional receiver (only if next arg does NOT start with '/')
+	if (i < args.size() && !args[i].empty() && args[i][0] != '/')
+	{
+		result.receiver = std::string(args[i]);
+		++i;
+	}
+
+	// Now args[i] should be the message component (starts with '/')
+	if (i >= args.size() || args[i].empty() || args[i][0] != '/')
+	{
+		// No valid message component
+		return std::nullopt;
+	}
+
 	// Message = remainder of original line starting at first message token
-	result.message = line.substr(args[i].data() - line.data());
+	result.message = std::string(line.substr(args[i].data() - line.data()));
 
 	return result;
 }
@@ -74,7 +91,14 @@ static void RcCmd(const PlayerClient*, const char* szLine)
 	}
 
 	std::string unescaped = unescape_args(commandArgs->message);
-	channel->SendCommand(std::move(unescaped), commandArgs->includeSelf);
+	if (commandArgs->receiver)
+	{
+		channel->SendCommand(std::move(*commandArgs->receiver), std::move(unescaped));
+	}
+	else 
+	{
+		channel->SendCommand(std::move(unescaped), commandArgs->includeSelf);
+	}
 }
 
 
