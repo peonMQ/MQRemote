@@ -6,6 +6,15 @@ namespace remote
 
 static const std::chrono::milliseconds UPDATE_TICK_MILLISECONDS(1000);
 
+static const char* GetClassName()
+{
+	if (auto pChar2 = GetPcProfile())
+	{
+		return ClassInfo[pChar2->Class].ShortName;
+	}
+	return nullptr;
+}
+
 static const char* GetGroupLeaderName()
 {
 	if (pLocalPC
@@ -38,6 +47,10 @@ void ChannelManager::Initialize()
 		m_server_channel.emplace("server", server);
 
 		m_zone_channel.emplace("zone", pZoneInfo->ShortName);
+
+		std::string classname = GetClassName();
+		to_lower(classname);
+		m_class_channel.emplace("class", classname);
 
 		LoadPersistentChannels();
 	}
@@ -157,6 +170,11 @@ remote::Channel* ChannelManager::FindChannel(std::string_view name)
 		return &*m_zone_channel;
 	}
 
+	if (m_class_channel && m_class_channel->GetSubName() == name)
+	{
+		return &*m_class_channel;
+	}
+
 	auto it = m_custom_channels.find(std::string(name));
 	if (it != m_custom_channels.end())
 	{
@@ -221,6 +239,7 @@ void ChannelManager::SetGameState(int gameState)
 		m_group_channel.reset();
 		m_raid_channel.reset();
 		m_zone_channel.reset();
+		m_class_channel.reset();
 		m_custom_channels.clear();
 	}
 
@@ -232,11 +251,18 @@ void ChannelManager::SetGameState(int gameState)
 			to_lower(server);
 			m_server_channel.emplace("server", server);
 		}
-	}
 
-	if (gameState == GAMESTATE_INGAME)
-	{
-		LoadPersistentChannels();
+		if (gameState == GAMESTATE_INGAME)
+		{
+			if (!m_class_channel)
+			{
+				std::string classname = GetClassName();
+				to_lower(classname);
+				m_class_channel.emplace("class", classname);
+			}
+
+			LoadPersistentChannels();
+		}
 	}
 }
 

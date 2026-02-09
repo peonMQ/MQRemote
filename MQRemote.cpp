@@ -9,11 +9,11 @@ PLUGIN_VERSION(0.1);
 
 constexpr std::chrono::milliseconds UPDATE_TICK_MILLISECONDS{ 1000 };
 
-constexpr std::string_view GLOBAL_HELP = "/rc [+self] global <message>";
-constexpr std::string_view SERVER_HELP = "/rc [+self] server <message>\n/rc <character> <message>";
-constexpr std::string_view GROUP_HELP = "/rc [+self] group <message>";
-constexpr std::string_view RAID_HELP = "/rc [+self] raid <message>";
-constexpr std::string_view ZONE_HELP = "/rc [+self] zone <message>";
+constexpr std::string_view GLOBAL_HELP = "/rc [+self] global <message>\n/rc global <character> <message>";
+constexpr std::string_view SERVER_HELP = "/rc [+self] server <message>\n/rc server <character> <message>\n/rc <character> <message>";
+constexpr std::string_view GROUP_HELP = "/rc [+self] group <message>\n/rc group <character> <message>";
+constexpr std::string_view RAID_HELP = "/rc [+self] raid <message>\n/rc raid <character> <message>";
+constexpr std::string_view ZONE_HELP = "/rc [+self] zone <message>\n/rc zone <character> <message>";
 
 static remote::ChannelManager* gChannels = nullptr;
 
@@ -83,15 +83,14 @@ static void RcCmd(const PlayerClient*, const char* szLine)
 		return;
 	}
 
+	std::string unescaped = unescape_args(commandArgs->message);
 	auto* channel = gChannels->FindChannel(commandArgs->channel);
 	if (!channel) // No valid channel available
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> <message>", mqplugin::PluginName);
-		return;
+		channel = gChannels->GetServerChannel();
+		channel->SendCommand(std::move(commandArgs->channel), std::move(unescaped));
 	}
-
-	std::string unescaped = unescape_args(commandArgs->message);
-	if (commandArgs->receiver)
+	else if (commandArgs->receiver)
 	{
 		channel->SendCommand(std::move(*commandArgs->receiver), std::move(unescaped));
 	}
@@ -204,11 +203,17 @@ static void DrawSubscriptionsPanel()
 		{
 			DrawCustomChannelRow(*gChannels->GetZoneChannel(), ZONE_HELP);
 		}
+		if (gChannels->GetClassChannel())
+		{
+			auto subName = std::string(gChannels->GetClassChannel()->GetSubName());
+			std::string class_help = fmt::format("/rc [+self] {} <message>\n/rc {} <character> <message>", subName, subName);
+			DrawCustomChannelRow(*gChannels->GetClassChannel(), class_help);
+		}
 
 		// Safe iteration with erase
 		for (auto it = gChannels->GetCustomChannels().begin(); it != gChannels->GetCustomChannels().end(); )
 		{
-			std::string help = fmt::format("/rc [+self] {} <message>", it->first);
+			std::string help = fmt::format("/rc [+self] {} <message>\n/rc {} <character> <message>", it->first, it->first);
 
 			if (DrawCustomChannelRow(it->second, help, true))
 				it = gChannels->GetCustomChannels().erase(it);

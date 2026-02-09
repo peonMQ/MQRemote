@@ -29,6 +29,7 @@ public:
 	Channel* GetGroupChannel() { return opt_ptr(m_group_channel); }
 	Channel* GetRaidChannel() { return opt_ptr(m_raid_channel); }
 	Channel* GetZoneChannel() { return opt_ptr(m_zone_channel); }
+	Channel* GetClassChannel() { return opt_ptr(m_class_channel); }
 
 	std::unordered_map<std::string, Channel>& GetCustomChannels() { return m_custom_channels; }
 
@@ -49,6 +50,7 @@ private:
 	std::optional<Channel> m_group_channel;
 	std::optional<Channel> m_raid_channel;
 	std::optional<Channel> m_zone_channel;
+	std::optional<Channel> m_class_channel;
 
 	std::unordered_map<std::string, Channel> m_custom_channels;
 
