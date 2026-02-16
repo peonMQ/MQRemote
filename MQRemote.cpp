@@ -174,7 +174,7 @@ static void DrawSubscriptionsPanel()
 	int parentFlag = remote::Logger::LogFlag::LOG_GENERAL | remote::Logger::LogFlag::LOG_SEND | remote::Logger::LogFlag::LOG_RECEIVE;
 
 	// Parent checkbox: tri-state handled automatically by ImGui
-	if(ImGui::CheckboxFlags("Enable Logging", &loggingSettings, parentFlag))
+	if(ImGui::CheckboxFlags("Console Logging Enabled", &loggingSettings, parentFlag))
 	{
 		UpdateLogSettings();
 	}
