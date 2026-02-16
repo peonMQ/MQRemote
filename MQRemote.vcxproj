@@ -84,6 +84,7 @@
   <ItemGroup>
     <ClInclude Include="Channel.h" />
     <ClInclude Include="ChannelManager.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="Remote.pb.h">
       <DependentUpon>Remote.proto</DependentUpon>
     </ClInclude>

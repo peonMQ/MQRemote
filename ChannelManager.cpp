@@ -38,19 +38,19 @@ static const char* GetRaidLeaderName()
 
 void ChannelManager::Initialize()
 {
-	m_global_channel.emplace("global");
+	m_global_channel.emplace(m_logger, "global");
 
 	if (GetGameState() == GAMESTATE_INGAME)
 	{
 		std::string server = GetServerShortName();
 		to_lower(server);
-		m_server_channel.emplace("server", server);
+		m_server_channel.emplace(m_logger, "server", server);
 
-		m_zone_channel.emplace("zone", pZoneInfo->ShortName);
+		m_zone_channel.emplace(m_logger, "zone", pZoneInfo->ShortName);
 
 		std::string classname = GetClassName();
 		to_lower(classname);
-		m_class_channel.emplace("class", classname);
+		m_class_channel.emplace(m_logger, "class", classname);
 
 		LoadPersistentChannels();
 	}
@@ -83,22 +83,31 @@ void ChannelManager::JoinCustomChannel(std::string_view nameArg, std::string_vie
 
 	if (nameArg.empty())
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName);
+		if(m_logger)
+		{
+			m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Syntax: /rcjoin <channel>  [auto|noauto] -- join channel", mqplugin::PluginName);
+		}
 		return;
 	}
 
 	std::string name = mq::to_lower_copy(nameArg);
-	auto [_, inserted] = m_custom_channels.try_emplace(name, "custom", name);
+	auto [_, inserted] = m_custom_channels.try_emplace(name, m_logger, "custom", name);
 	if (!inserted)
 	{
-		WriteChatf("\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name.c_str());
+		if(m_logger)
+		{
+			m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Already joined channel %s", mqplugin::PluginName, name.c_str());
+		}
 	}
 	
 	if (auto_join)
 	{
 		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
 		WritePrivateProfileBool(pLocalPC->Name, name, true, INIFileName);
-		WriteChatf("\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+		if(m_logger)
+		{
+			m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+		}
 	}
 }
 
@@ -119,7 +128,10 @@ void ChannelManager::LeaveCustomChannel(std::string_view nameArg, std::string_vi
 
 	if (nameArg.empty())
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName);
+		if(m_logger)
+		{	
+			m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Syntax: /rcleave <channel>  [auto|noauto] -- leave channel", mqplugin::PluginName);
+		}
 		return;
 	}
 
@@ -129,7 +141,10 @@ void ChannelManager::LeaveCustomChannel(std::string_view nameArg, std::string_vi
 		auto dns_name = std::string(it->second.GetDnsName());  // store value before erasing
 		m_custom_channels.erase(it);
 
-		WriteChatf("\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
+		if(m_logger)
+		{
+			m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Left channel: \aw%s\ax", mqplugin::PluginName, dns_name.c_str());
+		}
 	}
 
 	if (!auto_join)
@@ -138,7 +153,10 @@ void ChannelManager::LeaveCustomChannel(std::string_view nameArg, std::string_vi
 		if (PrivateProfileKeyExists(pLocalPC->Name, name, INIFileName))
 		{
 			WritePrivateProfileBool(pLocalPC->Name, name, false, INIFileName);
-			WriteChatf("\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+			if(m_logger)
+			{
+				m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+			}
 		}
 	}
 }
@@ -192,7 +210,7 @@ void ChannelManager::LoadPersistentChannels()
 	{
 		if (GetPrivateProfileValue(pLocalPC->Name, channel.c_str(), false, INIFileName))
 		{
-			m_custom_channels.try_emplace(channel, "custom", channel);
+			m_custom_channels.try_emplace(channel, m_logger, "custom", channel);
 		}
 	}
 }
@@ -204,7 +222,7 @@ void ChannelManager::UpdateGroupChannel()
 	{
 		if (!m_group_channel || !ci_equals(m_group_channel->GetSubName(), leaderName))
 		{
-			m_group_channel.emplace("group", mq::to_lower_copy(leaderName));
+			m_group_channel.emplace(m_logger, "group", mq::to_lower_copy(leaderName));
 		}
 	}
 	else if (m_group_channel) 
@@ -222,7 +240,7 @@ void ChannelManager::UpdateRaidChannel()
 		to_lower(leader_lower);
 		if (!m_raid_channel || !ci_equals(m_raid_channel->GetSubName(), leaderName))
 		{
-			m_raid_channel.emplace("raid", mq::to_lower_copy(leaderName));
+			m_raid_channel.emplace(m_logger, "raid", mq::to_lower_copy(leaderName));
 		}
 	}
 	else if (m_raid_channel)
@@ -249,7 +267,7 @@ void ChannelManager::SetGameState(int gameState)
 		{
 			std::string server = GetServerShortName();
 			to_lower(server);
-			m_server_channel.emplace("server", server);
+			m_server_channel.emplace(m_logger, "server", server);
 		}
 
 		if (gameState == GAMESTATE_INGAME)
@@ -258,7 +276,7 @@ void ChannelManager::SetGameState(int gameState)
 			{
 				std::string classname = GetClassName();
 				to_lower(classname);
-				m_class_channel.emplace("class", classname);
+				m_class_channel.emplace(m_logger, "class", classname);
 			}
 
 			LoadPersistentChannels();
@@ -289,7 +307,7 @@ void ChannelManager::OnEndZone()
 {
 	if (GetGameState() == GAMESTATE_INGAME)
 	{
-		m_zone_channel.emplace("zone", pZoneInfo->ShortName);
+		m_zone_channel.emplace(m_logger, "zone", pZoneInfo->ShortName);
 	}
 }
 }

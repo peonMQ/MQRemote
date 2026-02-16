@@ -1,5 +1,6 @@
 ﻿
 #include "ChannelManager.h"
+#include "Logger.h"
 
 #include "routing/PostOffice.h"
 #include "mq/Plugin.h"
@@ -16,6 +17,10 @@ constexpr std::string_view RAID_HELP = "/rc [+self] raid <message>\n/rc raid <ch
 constexpr std::string_view ZONE_HELP = "/rc [+self] zone <message>\n/rc zone <character> <message>";
 
 static remote::ChannelManager* gChannels = nullptr;
+static remote::Logger* gLogger = nullptr;
+
+// Current settings stored as bitmask
+static int loggingSettings = remote::Logger::LogFlag::LOG_GENERAL | remote::Logger::LogFlag::LOG_RECEIVE; // General and Receive enabled
 
 struct RemoteCommandArgs
 {
@@ -79,7 +84,7 @@ static void RcCmd(const PlayerClient*, const char* szLine)
 	auto commandArgs = GetRemoteCommandArgs(szLine);
 	if (!commandArgs)
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> <message>", mqplugin::PluginName);
+		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> [character] <message>", mqplugin::PluginName);
 		return;
 	}
 
@@ -155,9 +160,45 @@ static bool DrawCustomChannelRow(const remote::Channel& controller, const std::s
 	return erase_this;
 }
 
+static void UpdateLogSettings()
+{
+	gLogger->SetSettings(loggingSettings);
+	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+	WritePrivateProfileInt("MQRemote", "Logging", loggingSettings, INIFileName);
+}
+
 static void DrawSubscriptionsPanel()
 {
 	static char newChannelBuf[128] = "";
+
+	int parentFlag = remote::Logger::LogFlag::LOG_GENERAL | remote::Logger::LogFlag::LOG_SEND | remote::Logger::LogFlag::LOG_RECEIVE;
+
+	// Parent checkbox: tri-state handled automatically by ImGui
+	if(ImGui::CheckboxFlags("Enable Logging", &loggingSettings, parentFlag))
+	{
+		UpdateLogSettings();
+	}
+
+	// Children
+	ImGui::Indent();
+	if (ImGui::CheckboxFlags("General", &loggingSettings, remote::Logger::LogFlag::LOG_GENERAL))
+	{
+		UpdateLogSettings();
+	}
+	
+	ImGui::SameLine();
+	if(ImGui::CheckboxFlags("Send", &loggingSettings, remote::Logger::LogFlag::LOG_SEND))
+	{
+		UpdateLogSettings();
+	}
+	
+	ImGui::SameLine();
+	if(ImGui::CheckboxFlags("Receive", &loggingSettings, remote::Logger::LogFlag::LOG_RECEIVE))
+	{
+		UpdateLogSettings();
+	}
+
+	ImGui::Unindent();
 
 	// --- Add new channel section ---
 	ImGui::Text("Add New Channel");
@@ -229,7 +270,13 @@ PLUGIN_API void InitializePlugin()
 {
 	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
 
-	gChannels = new remote::ChannelManager();
+	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+	loggingSettings = GetPrivateProfileInt("MQRemote", "Logging", loggingSettings, INIFileName);
+
+	gLogger = new remote::Logger();
+	gLogger->SetSettings(loggingSettings);
+
+	gChannels = new remote::ChannelManager(gLogger);
 	gChannels->Initialize();
 
 	AddCommand("/rc", RcCmd);
@@ -245,6 +292,8 @@ PLUGIN_API void ShutdownPlugin()
 
 	gChannels->Shutdown();
 	delete gChannels;
+
+	delete gLogger;
 
 	RemoveMQ2Data("Remote");
 

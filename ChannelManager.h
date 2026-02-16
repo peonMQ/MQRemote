@@ -4,12 +4,19 @@
 #include <unordered_map>
 #include <string>
 #include "Channel.h"
+#include "Logger.h"
 
 namespace remote
 {
 class ChannelManager
 {
 public:
+	// Constructor takes pointer to Logger
+	ChannelManager(Logger* logger)
+		: m_logger(logger)
+	{
+	}
+
 	// lifecycle
 	void Initialize();
 	void Shutdown();
@@ -53,6 +60,8 @@ private:
 	std::optional<Channel> m_class_channel;
 
 	std::unordered_map<std::string, Channel> m_custom_channels;
+
+	Logger* m_logger; // pointer to the global logger
 
 	std::chrono::steady_clock::time_point m_pulseTimer = std::chrono::steady_clock::now();
 };

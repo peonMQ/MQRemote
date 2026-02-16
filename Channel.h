@@ -2,12 +2,13 @@
 
 #include "Remote.pb.h"
 #include "mq/Plugin.h"
+#include "Logger.h"
 
 namespace remote {
 class Channel
 {
 public:
-	Channel(std::string name, std::string sub_name = "");
+	Channel(Logger* logger, std::string name, std::string sub_name = "");
 	~Channel();
 
 	void SendCommand(std::string command, bool includeSelf);
@@ -24,6 +25,7 @@ public:
 private:
 	void ReceivedMessageHandler(const std::shared_ptr<postoffice::Message>& message);
 
+	Logger* m_logger; // pointer to the global logger
 	const std::string m_name;
 	const std::string m_sub_name;
 	const std::string m_dnsName;
