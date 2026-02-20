@@ -102,11 +102,14 @@ void ChannelManager::JoinCustomChannel(std::string_view nameArg, std::string_vie
 	
 	if (auto_join)
 	{
-		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
-		WritePrivateProfileBool(pLocalPC->Name, name, true, INIFileName);
-		if(m_logger)
+		if (!m_channelINISection.empty())
 		{
-			m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+			sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
+			WritePrivateProfileBool(m_channelINISection, name, true, INIFileName);
+			if (m_logger)
+			{
+				m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Enable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+			}
 		}
 	}
 }
@@ -149,13 +152,16 @@ void ChannelManager::LeaveCustomChannel(std::string_view nameArg, std::string_vi
 
 	if (!auto_join)
 	{
-		sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
-		if (PrivateProfileKeyExists(pLocalPC->Name, name, INIFileName))
+		if (!m_channelINISection.empty()) 
 		{
-			WritePrivateProfileBool(pLocalPC->Name, name, false, INIFileName);
-			if(m_logger)
+			sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
+			if (PrivateProfileKeyExists(m_channelINISection, name, INIFileName))
 			{
-				m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+				WritePrivateProfileBool(m_channelINISection, name, false, INIFileName);
+				if (m_logger)
+				{
+					m_logger->Log(remote::Logger::LogFlag::LOG_GENERAL, "\am[%s]\ax Disable autojoin for: \aw%s\ax", mqplugin::PluginName, name.c_str());
+				}
 			}
 		}
 	}
@@ -204,11 +210,14 @@ remote::Channel* ChannelManager::FindChannel(std::string_view name)
 
 void ChannelManager::LoadPersistentChannels()
 {
-	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
-	auto channels = GetPrivateProfileKeys(pLocalPC->Name, INIFileName);
+	if (m_channelINISection.empty())
+		return;
+
+	sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
+	auto channels = GetPrivateProfileKeys(m_channelINISection, INIFileName);
 	for (const auto& channel : channels)
 	{
-		if (GetPrivateProfileValue(pLocalPC->Name, channel.c_str(), false, INIFileName))
+		if (GetPrivateProfileValue(m_channelINISection, channel.c_str(), false, INIFileName))
 		{
 			m_custom_channels.try_emplace(channel, m_logger, "custom", channel);
 		}
@@ -259,6 +268,7 @@ void ChannelManager::SetGameState(int gameState)
 		m_zone_channel.reset();
 		m_class_channel.reset();
 		m_custom_channels.clear();
+		m_channelINISection.clear();
 	}
 
 	if (gameState > GAMESTATE_PRECHARSELECT)
@@ -272,6 +282,8 @@ void ChannelManager::SetGameState(int gameState)
 
 		if (gameState == GAMESTATE_INGAME)
 		{
+			m_channelINISection = fmt::format("{}.{}", GetServerShortName(), pLocalPlayer->Name);
+
 			if (!m_class_channel)
 			{
 				std::string classname = GetClassName();

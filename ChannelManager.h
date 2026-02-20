@@ -52,6 +52,8 @@ private:
 	void UpdateRaidChannel();
 
 private:
+	std::string m_channelINISection;
+
 	std::optional<Channel> m_global_channel;
 	std::optional<Channel> m_server_channel;
 	std::optional<Channel> m_group_channel;

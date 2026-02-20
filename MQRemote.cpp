@@ -163,7 +163,7 @@ static bool DrawCustomChannelRow(const remote::Channel& controller, const std::s
 static void UpdateLogSettings()
 {
 	gLogger->SetSettings(loggingSettings);
-	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
+	sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
 	WritePrivateProfileInt("MQRemote", "Logging", loggingSettings, INIFileName);
 }
 
@@ -270,8 +270,11 @@ PLUGIN_API void InitializePlugin()
 {
 	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
 
-	sprintf_s(INIFileName, "%s\\%s_%s.ini", gPathConfig, mqplugin::PluginName, GetServerShortName());
-	loggingSettings = GetPrivateProfileInt("MQRemote", "Logging", loggingSettings, INIFileName);
+	sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
+	if (PrivateProfileKeyExists("MQRemote", "Logging", INIFileName)) 
+	{
+		loggingSettings = GetPrivateProfileInt("MQRemote", "Logging", 0, INIFileName);
+	}
 
 	gLogger = new remote::Logger();
 	gLogger->SetSettings(loggingSettings);
