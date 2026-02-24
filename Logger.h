@@ -1,57 +1,57 @@
 #pragma once
-#include <cstdarg>
-#include <cstdio>
+
+#include "mq/base/Enum.h"
 #include "mq/Plugin.h"
 
+#define PLUGIN_MSG "\am[MQRemote]\ax "
+
 namespace remote {
+
 class Logger
 {
 public:
 	// Logging flags exposed to other classes
-	enum LogFlag : int
+	enum class LogFlags : int
 	{
-		LOG_GENERAL = 1 << 0,
-		LOG_SEND = 1 << 1,
-		LOG_RECEIVE = 1 << 2,
+		LOG_ERROR         = 0x0001,
+		LOG_SEND          = 0x0002,
+		LOG_RECEIVE       = 0x0004,
+		LOG_CONNECTIONS   = 0x0008,
+
+		ALL_FLAGS = LOG_ERROR | LOG_SEND | LOG_RECEIVE | LOG_CONNECTIONS,
+		DEFAULT_FLAGS = LOG_ERROR | LOG_CONNECTIONS,
 	};
 
-	Logger() : m_settings(LOG_GENERAL | LOG_SEND | LOG_RECEIVE) {}
+	Logger() = default;
 
-	// Variadic log function
-	void Log(LogFlag flag, const char* szFormat, ...) const
+	void Log(LogFlags flag, const char* szFormat, ...) const
 	{
 		if (!IsEnabled(flag))
 			return;
 
-		va_list vaList;
-		va_start(vaList, szFormat);
+		va_list args;
+		va_start(args, szFormat);
 
-		// _vscprintf doesn't count // terminating '\0'
-		int len = _vscprintf(szFormat, vaList) + 1;
+		mq::VWriteChatColor(szFormat, args);
 
-		auto out = std::make_unique<char[]>(len);
-		char* szOutput = out.get();
-
-		vsprintf_s(szOutput, len, szFormat, vaList);
-
-		va_end(vaList);  // REQUIRED
-
-		WriteChatColor(szOutput);
+		va_end(args);
 	}
 
 	// Check if a specific logging flag is enabled
-	bool IsEnabled(LogFlag flag) const
-	{
-		return (m_settings & flag) != 0;
-	}
+	bool IsEnabled(LogFlags flag) const;
 
-	// Set logging settings (bitmask)
-	void SetSettings(int flags) { m_settings = flags; }
-
-	// Get current logging settings
-	int GetSettings() const { return m_settings; }
+	void SetFlags(LogFlags flags) { m_flags = flags; }
+	LogFlags GetFlags() const { return m_flags; }
 
 private:
-	int m_settings;
+	LogFlags m_flags{ LogFlags::DEFAULT_FLAGS };
 };
+
+constexpr bool has_bitwise_operations(Logger::LogFlags) { return true; }
+
+inline bool Logger::IsEnabled(LogFlags flag) const
+{
+	return !!(m_flags & flag);
 }
+
+} // namespace remote

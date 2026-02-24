@@ -2,13 +2,17 @@
 
 #include "Remote.pb.h"
 #include "mq/Plugin.h"
-#include "Logger.h"
+
+#include <string_view>
 
 namespace remote {
+
+class Logger;
+
 class Channel
 {
 public:
-	Channel(Logger* logger, std::string name, std::string sub_name = "");
+	Channel(Logger* logger, std::string name, std::string_view sub_name = "");
 	~Channel();
 
 	void SendCommand(std::string command, bool includeSelf);
@@ -31,4 +35,5 @@ private:
 	const std::string m_dnsName;
 	postoffice::DropboxAPI m_dropbox;
 };
+
 } // namespace remote
