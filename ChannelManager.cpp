@@ -280,8 +280,6 @@ void ChannelManager::SetGameState(int gameState)
 
 		if (gameState == GAMESTATE_INGAME)
 		{
-			m_channelINISection = fmt::format("{}.{}", GetServerShortName(), pLocalPlayer->Name);
-
 			if (!m_class_channel)
 			{
 				std::string_view className = GetClassName();
@@ -290,8 +288,6 @@ void ChannelManager::SetGameState(int gameState)
 					m_class_channel.emplace(m_logger, "class", className);
 				}
 			}
-
-			LoadPersistentChannels();
 		}
 	}
 }
@@ -306,6 +302,12 @@ void ChannelManager::OnPulse()
 			m_nextGroupUpdate = now + GROUP_UPDATE_INTERVAL;
 			UpdateGroupChannel();
 			UpdateRaidChannel();
+		}
+
+		if (m_channelINISection.empty())
+		{
+			m_channelINISection = fmt::format("{}.{}", GetServerShortName(), pLocalPlayer->Name);
+			LoadPersistentChannels();
 		}
 	}
 }
