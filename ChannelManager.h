@@ -1,17 +1,18 @@
 #pragma once
 
+#include "Channel.h"
+
 #include <optional>
 #include <unordered_map>
 #include <string>
-#include "Channel.h"
-#include "Logger.h"
 
-namespace remote
-{
+namespace remote {
+
+class Logger;
+
 class ChannelManager
 {
 public:
-	// Constructor takes pointer to Logger
 	ChannelManager(Logger* logger)
 		: m_logger(logger)
 	{
@@ -27,8 +28,8 @@ public:
 	void OnEndZone();
 
 	// channels
-	void JoinCustomChannel(std::string_view name, std::string_view autoArg);
-	void LeaveCustomChannel(std::string_view name, std::string_view autoArg);
+	void JoinCustomChannel(std::string_view name, std::string_view autoArg = {});
+	void LeaveCustomChannel(std::string_view name, std::string_view autoArg = {});
 	Channel* FindChannel(std::string_view name);
 
 	Channel* GetGlobalChannel() { return opt_ptr(m_global_channel); }
@@ -63,8 +64,8 @@ private:
 
 	std::unordered_map<std::string, Channel> m_custom_channels;
 
-	Logger* m_logger; // pointer to the global logger
-
-	std::chrono::steady_clock::time_point m_pulseTimer = std::chrono::steady_clock::now();
+	Logger* m_logger;
+	std::chrono::steady_clock::time_point m_nextGroupUpdate = std::chrono::steady_clock::now();
 };
-}
+
+} // namespace remote

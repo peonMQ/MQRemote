@@ -8,6 +8,8 @@
 PreSetup("MQRemote");
 PLUGIN_VERSION(0.1);
 
+namespace remote {
+
 constexpr std::chrono::milliseconds UPDATE_TICK_MILLISECONDS{ 1000 };
 
 constexpr std::string_view GLOBAL_HELP = "/rc [+self] global <message>\n/rc global <character> <message>";
@@ -16,17 +18,14 @@ constexpr std::string_view GROUP_HELP = "/rc [+self] group <message>\n/rc group 
 constexpr std::string_view RAID_HELP = "/rc [+self] raid <message>\n/rc raid <character> <message>";
 constexpr std::string_view ZONE_HELP = "/rc [+self] zone <message>\n/rc zone <character> <message>";
 
-static remote::ChannelManager* gChannels = nullptr;
-static remote::Logger* gLogger = nullptr;
-
-// Current settings stored as bitmask
-static int loggingSettings = remote::Logger::LogFlag::LOG_GENERAL | remote::Logger::LogFlag::LOG_RECEIVE; // General and Receive enabled
+static ChannelManager* gChannels = nullptr;
+static Logger* gLogger = nullptr;
 
 struct RemoteCommandArgs
 {
 	bool includeSelf = false;
 	std::string channel;
-	std::optional<std::string> receiver;   // NEW optional receiver
+	std::optional<std::string> receiver;
 	std::string message;
 };
 
@@ -81,15 +80,15 @@ static std::optional<RemoteCommandArgs> GetRemoteCommandArgs(const char* szLine)
 
 static void RcCmd(const PlayerClient*, const char* szLine)
 {
-	auto commandArgs = GetRemoteCommandArgs(szLine);
+	std::optional<RemoteCommandArgs> commandArgs = GetRemoteCommandArgs(szLine);
 	if (!commandArgs)
 	{
-		WriteChatf("\am[%s]\ax Syntax: /rc [+self] <channel> [character] <message>", mqplugin::PluginName);
+		WriteChatf(PLUGIN_MSG "Syntax: /rc [+self] <channel> [character] <message>");
 		return;
 	}
 
 	std::string unescaped = unescape_args(commandArgs->message);
-	auto* channel = gChannels->FindChannel(commandArgs->channel);
+	Channel* channel = gChannels->FindChannel(commandArgs->channel);
 	if (!channel) // No valid channel available
 	{
 		channel = gChannels->GetServerChannel();
@@ -105,11 +104,10 @@ static void RcCmd(const PlayerClient*, const char* szLine)
 	}
 }
 
-
 static void RcJoinCmd(const PlayerClient*, const char* szLine)
 {
-	char szName[MAX_STRING] = { 0 };
-	char szAuto[MAX_STRING] = { 0 };
+	char szName[MAX_STRING] = {};
+	char szAuto[MAX_STRING] = {};
 
 	GetArg(szName, szLine, 1);
 	GetArg(szAuto, szLine, 2); // optional
@@ -119,8 +117,8 @@ static void RcJoinCmd(const PlayerClient*, const char* szLine)
 
 static void RcLeaveCmd(const PlayerClient*, const char* szLine)
 {
-	char szName[MAX_STRING] = { 0 };
-	char szAuto[MAX_STRING] = { 0 };
+	char szName[MAX_STRING] = {};
+	char szAuto[MAX_STRING] = {};
 
 	GetArg(szName, szLine, 1);
 	GetArg(szAuto, szLine, 2); // optional
@@ -128,28 +126,28 @@ static void RcLeaveCmd(const PlayerClient*, const char* szLine)
 	gChannels->LeaveCustomChannel(szName, szAuto);
 }
 
-static bool DrawCustomChannelRow(const remote::Channel& controller, const std::string_view& helpText, const bool canLeave = false)
+static bool DrawCustomChannelRow(const Channel& channel, const std::string_view& helpText, const bool canLeave = false)
 {
 	bool erase_this = false;
-	std::string_view dnsName = controller.GetDnsName();
+	std::string_view dnsName = channel.GetDnsName();
 
-	ImGui::PushID(dnsName.data(), dnsName.data() + dnsName.size());
+	ImGui::PushID(&channel);
 
 	ImGui::TableNextRow();
 
 	// Column 0: Channel name
-	ImGui::TableSetColumnIndex(0);
-	ImGui::Text("%.*s", (int)dnsName.size(), dnsName.data());
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted(dnsName.data(), dnsName.data() + dnsName.size());
 
 	// Column 1: Command help
-	ImGui::TableSetColumnIndex(1);
-	ImGui::Text("%.*s", (int)helpText.size(), helpText.data());
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted(helpText.data(), helpText.data() + helpText.size());
 
-	if (canLeave) 
+	ImGui::TableNextColumn();
+	if (canLeave)
 	{
 		// Column 2: Action button
-		ImGui::TableSetColumnIndex(2);
-		if (ImGui::Button("Leave channel"))
+		if (ImGui::Button("Leave"))
 		{
 			erase_this = true;
 		}
@@ -160,49 +158,58 @@ static bool DrawCustomChannelRow(const remote::Channel& controller, const std::s
 	return erase_this;
 }
 
-static void UpdateLogSettings()
+static void UpdateLogFlags(Logger::LogFlags flags)
 {
-	gLogger->SetSettings(loggingSettings);
-	sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
-	WritePrivateProfileInt("MQRemote", "Logging", loggingSettings, INIFileName);
+	gLogger->SetFlags(flags);
+	WritePrivateProfileInt("MQRemote", "LoggingFlags", +flags, INIFileName);
 }
 
 static void DrawSubscriptionsPanel()
 {
 	static char newChannelBuf[128] = "";
 
-	int parentFlag = remote::Logger::LogFlag::LOG_GENERAL | remote::Logger::LogFlag::LOG_SEND | remote::Logger::LogFlag::LOG_RECEIVE;
+	using enum Logger::LogFlags;
+	int flags = +gLogger->GetFlags();
 
-	// Parent checkbox: tri-state handled automatically by ImGui
-	if(ImGui::CheckboxFlags("Console Logging Enabled", &loggingSettings, parentFlag))
+	if (ImGui::CheckboxFlags("Console Logging Enabled", &flags, +ALL_FLAGS))
 	{
-		UpdateLogSettings();
+		UpdateLogFlags(static_cast<Logger::LogFlags>(flags));
 	}
 
 	// Children
 	ImGui::Indent();
-	if (ImGui::CheckboxFlags("General", &loggingSettings, remote::Logger::LogFlag::LOG_GENERAL))
+	if (ImGui::CheckboxFlags("Errors", &flags, +LOG_ERROR))
 	{
-		UpdateLogSettings();
+		UpdateLogFlags(static_cast<Logger::LogFlags>(flags));
+	}
+
+	ImGui::SameLine();
+	if (ImGui::CheckboxFlags("Connection Messages", &flags, +LOG_CONNECTIONS))
+	{
+		UpdateLogFlags(static_cast<Logger::LogFlags>(flags));
+	}
+
+	if (ImGui::CheckboxFlags("Sent Messages", &flags, +LOG_SEND))
+	{
+		UpdateLogFlags(static_cast<Logger::LogFlags>(flags));
 	}
 	
 	ImGui::SameLine();
-	if(ImGui::CheckboxFlags("Send", &loggingSettings, remote::Logger::LogFlag::LOG_SEND))
+	if (ImGui::CheckboxFlags("Received Messages", &flags, +LOG_RECEIVE))
 	{
-		UpdateLogSettings();
-	}
-	
-	ImGui::SameLine();
-	if(ImGui::CheckboxFlags("Receive", &loggingSettings, remote::Logger::LogFlag::LOG_RECEIVE))
-	{
-		UpdateLogSettings();
+		UpdateLogFlags(static_cast<Logger::LogFlags>(flags));
 	}
 
 	ImGui::Unindent();
 
+	ImGui::Separator();
+
 	// --- Add new channel section ---
 	ImGui::Text("Add New Channel");
 	ImGui::SameLine();
+
+	float availWidth = ImGui::GetContentRegionAvail().x;
+	ImGui::SetNextItemWidth(availWidth - 42); // TODO calculate frame padding for button
 	ImGui::InputText("##newChannel", newChannelBuf, IM_ARRAYSIZE(newChannelBuf));
 
 	ImGui::SameLine();
@@ -210,18 +217,19 @@ static void DrawSubscriptionsPanel()
 	{
 		if (newChannelBuf[0])
 		{
-			RcJoinCmd(nullptr, newChannelBuf);
+			gChannels->JoinCustomChannel(newChannelBuf);
 			newChannelBuf[0] = '\0';
 		}
 	}
 
 	// --- List existing subscriptions ---
-	if (ImGui::BeginTable("channels_table", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+	if (ImGui::BeginTable("channels_table", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable))
 	{
 		// Table headers
-		ImGui::TableSetupColumn("Channel");
-		ImGui::TableSetupColumn("Usage");
-		ImGui::TableSetupColumn("");
+		ImGui::TableSetupColumn("Channel", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+		ImGui::TableSetupColumn("Usage", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("##Delete", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+		ImGui::TableSetupScrollFreeze(0, 1);
 		ImGui::TableHeadersRow();
 
 		if (gChannels->GetGlobalChannel()) 
@@ -246,12 +254,11 @@ static void DrawSubscriptionsPanel()
 		}
 		if (gChannels->GetClassChannel())
 		{
-			auto subName = std::string(gChannels->GetClassChannel()->GetSubName());
+			std::string_view subName = gChannels->GetClassChannel()->GetSubName();
 			std::string class_help = fmt::format("/rc [+self] {} <message>\n/rc {} <character> <message>", subName, subName);
 			DrawCustomChannelRow(*gChannels->GetClassChannel(), class_help);
 		}
 
-		// Safe iteration with erase
 		for (auto it = gChannels->GetCustomChannels().begin(); it != gChannels->GetCustomChannels().end(); )
 		{
 			std::string help = fmt::format("/rc [+self] {} <message>\n/rc {} <character> <message>", it->first, it->first);
@@ -266,20 +273,18 @@ static void DrawSubscriptionsPanel()
 	}
 }
 
+} // namespace remote
+
+using namespace remote;
+
 PLUGIN_API void InitializePlugin()
 {
-	WriteChatf("\am[%s]\ax Initializing version %f", mqplugin::PluginName, MQ2Version);
+	gLogger = new Logger();
 
-	sprintf_s(INIFileName, "%s\\%s.ini", gPathConfig, mqplugin::PluginName);
-	if (PrivateProfileKeyExists("MQRemote", "Logging", INIFileName)) 
-	{
-		loggingSettings = GetPrivateProfileInt("MQRemote", "Logging", 0, INIFileName);
-	}
+	int flags = GetPrivateProfileInt("MQRemote", "LoggingFlags", static_cast<int>(Logger::LogFlags::DEFAULT_FLAGS), INIFileName);
+	gLogger->SetFlags(static_cast<Logger::LogFlags>(flags));
 
-	gLogger = new remote::Logger();
-	gLogger->SetSettings(loggingSettings);
-
-	gChannels = new remote::ChannelManager(gLogger);
+	gChannels = new ChannelManager(gLogger);
 	gChannels->Initialize();
 
 	AddCommand("/rc", RcCmd);
@@ -291,14 +296,9 @@ PLUGIN_API void InitializePlugin()
 
 PLUGIN_API void ShutdownPlugin()
 {
-	WriteChatf("\am[%s]\ax Shutting down", mqplugin::PluginName);
-
 	gChannels->Shutdown();
 	delete gChannels;
-
 	delete gLogger;
-
-	RemoveMQ2Data("Remote");
 
 	RemoveCommand("/rc");
 	RemoveCommand("/rcjoin");
