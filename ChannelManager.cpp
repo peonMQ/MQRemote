@@ -110,8 +110,11 @@ void ChannelManager::JoinCustomChannel(std::string_view nameArg, std::string_vie
 		if (!m_channelINISection.empty())
 		{
 			WritePrivateProfileBool(m_channelINISection, name, true, INIFileName);
-			
 			WriteChatf(PLUGIN_MSG "Enable autojoin for: \aw%s\ax", name.c_str());
+		}
+		else
+		{
+			WriteChatf(PLUGIN_MSG "Autojoin toggle is only available while being ingame.");
 		}
 	}
 }
@@ -152,10 +155,14 @@ void ChannelManager::LeaveCustomChannel(std::string_view nameArg, std::string_vi
 		{
 			if (PrivateProfileKeyExists(m_channelINISection, name, INIFileName))
 			{
-				WritePrivateProfileBool(m_channelINISection, name, false, INIFileName);
+				DeletePrivateProfileKey(m_channelINISection, name, INIFileName);
 				
 				WriteChatf(PLUGIN_MSG "Disable autojoin for: \aw%s\ax", name.c_str());
 			}
+		}
+		else
+		{
+			WriteChatf(PLUGIN_MSG "Autojoin toggle is only available while being ingame.");
 		}
 	}
 }
