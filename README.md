@@ -81,9 +81,12 @@ You can also create and use custom channels dynamically. Channels may be marked 
 ```
 
 ### Configuration File
-A configuration file for storing custom channels that should be automatically joined has the following setup:
+A configuration file,`MQRemote.ini`, is used for storing logging settings and custom channels that should be automatically joined has the following setup:
 
 ```ini
+[MQRemote]
+LoggingFlags=15
+
 [Winnythepoo]
 honeyjar=1
 bees=0
@@ -91,8 +94,6 @@ bees=0
 [Pigglet]
 forrest=1
 ```
-
-The ini is on a per serer basis: `MQRemote_SeverShortName.ini`
 
 ### Examples
 Sending commands to other toons: 
@@ -121,6 +122,39 @@ Sending commands to all other connects clients:
 To have the recieving client parse MQ data use `noparse`
 ```
 /noparse /rc +self global /echo I am ${Me.PctExp} into ${Me.Level}
+```
+
+## Easier migration from EQBC or DanNet
+Setup aliases for the different channels to be similar to your previous preferred choice of plugin.
+
+Example
+```
+# Tells matching eqbc or dannet api
+/alias /rct /rc server
+
+# All matching eqbc or dannet api
+/alias /rca /rc server
+
+# All including self matching eqbc or dannet api
+/alias /rcaa /rc +self server
+
+# Zone matching eqbc or dannet api
+/alias /rcz /rc zone
+
+# Zone including self matching eqbc or dannet api
+/alias /rcza /rc +self zone
+
+# Group matching eqbc or dannet api
+/alias /rcg /rc group
+
+# Group including self matching eqbc or dannet api
+/alias /rcga /rc +self group
+
+# Raid matching dannet api
+/alias /rcr /rc raid
+
+# Raid including self matching dannet api
+/alias /rcra /rc +self raid
 ```
 
 ## Authors
