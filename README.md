@@ -58,14 +58,6 @@ The group channel is available whenever the character is in a raid. Sends a comm
 /rc raid name <message>   - Send a command to the raid channel to the specific named character
 ```
 
-##### Class Channel
-The class channel is available once the character is registered as being ingame. Use this to limit recievers to be only the other characters who are of the same class.
-```
-/rc class <message>        - Send a command to the class channel excluding self
-/rc +self class <message>  - Send a command to the class channel message including self
-/rc class name <message>   - Send a command to the class channel to the specific named character
-```
-
 #### Custom Channels
 You can also create and use custom channels dynamically. Channels may be marked as auto (default) or noauto to persist in settings if the channel should be automatically joined by the character.
 ```

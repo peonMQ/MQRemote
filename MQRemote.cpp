@@ -252,12 +252,6 @@ static void DrawSubscriptionsPanel()
 		{
 			DrawCustomChannelRow(*gChannels->GetZoneChannel(), ZONE_HELP);
 		}
-		if (gChannels->GetClassChannel())
-		{
-			std::string_view subName = gChannels->GetClassChannel()->GetSubName();
-			std::string class_help = fmt::format("/rc [+self] {} <message>\n/rc {} <character> <message>", subName, subName);
-			DrawCustomChannelRow(*gChannels->GetClassChannel(), class_help);
-		}
 
 		for (auto it = gChannels->GetCustomChannels().begin(); it != gChannels->GetCustomChannels().end(); )
 		{

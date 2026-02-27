@@ -57,12 +57,6 @@ void ChannelManager::Initialize()
 			m_zone_channel.emplace(m_logger, "zone", shortName);
 		}
 
-		std::string_view classname = GetClassName();
-		if (classname.size() == 3)
-		{
-			m_class_channel.emplace(m_logger, "class", classname);
-		}
-
 		LoadPersistentChannels();
 	}
 }
@@ -194,11 +188,6 @@ remote::Channel* ChannelManager::FindChannel(std::string_view name)
 		return &*m_zone_channel;
 	}
 
-	if (m_class_channel && m_class_channel->GetSubName() == name)
-	{
-		return &*m_class_channel;
-	}
-
 	auto it = m_custom_channels.find(std::string(name));
 	if (it != m_custom_channels.end())
 	{
@@ -263,7 +252,6 @@ void ChannelManager::SetGameState(int gameState)
 		m_group_channel.reset();
 		m_raid_channel.reset();
 		m_zone_channel.reset();
-		m_class_channel.reset();
 		m_custom_channels.clear();
 		m_channelINISection.clear();
 	}
@@ -275,18 +263,6 @@ void ChannelManager::SetGameState(int gameState)
 			if (!server.empty())
 			{
 				m_server_channel.emplace(m_logger, "server", server);
-			}
-		}
-
-		if (gameState == GAMESTATE_INGAME)
-		{
-			if (!m_class_channel)
-			{
-				std::string_view className = GetClassName();
-				if (className.size() == 3)
-				{
-					m_class_channel.emplace(m_logger, "class", className);
-				}
 			}
 		}
 	}
