@@ -26,6 +26,7 @@ public:
 	void OnPulse();
 	void OnBeginZone();
 	void OnEndZone();
+	void OnZoned();
 
 	// channels
 	void JoinCustomChannel(std::string_view name, std::string_view autoArg = {});
@@ -50,6 +51,7 @@ private:
 
 	void UpdateGroupChannel();
 	void UpdateRaidChannel();
+	void UpdateZoneChannel();
 
 private:
 	std::string m_channelINISection;

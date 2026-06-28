@@ -51,11 +51,7 @@ void ChannelManager::Initialize()
 			m_server_channel.emplace(m_logger, "server", server);
 		}
 
-		std::string_view shortName = pZoneInfo->ShortName;
-		if (!shortName.empty())
-		{
-			m_zone_channel.emplace(m_logger, "zone", shortName);
-		}
+		UpdateZoneChannel();
 
 		LoadPersistentChannels();
 	}
@@ -244,6 +240,23 @@ void ChannelManager::UpdateRaidChannel()
 	}
 }
 
+void ChannelManager::UpdateZoneChannel()
+{
+	if (GetGameState() != GAMESTATE_INGAME || !pZoneInfo || !pZoneInfo->ShortName[0])
+	{
+		m_zone_channel.reset();
+		return;
+	}
+
+	std::string zoneShort = pZoneInfo->ShortName;
+	to_lower(zoneShort);
+
+	if (!m_zone_channel || !ci_equals(m_zone_channel->GetSubName(), zoneShort))
+	{
+		m_zone_channel.emplace("zone", zoneShort);
+	}
+}
+
 void ChannelManager::SetGameState(int gameState)
 {
 	if (gameState != GAMESTATE_INGAME)
@@ -266,6 +279,12 @@ void ChannelManager::SetGameState(int gameState)
 			}
 		}
 	}
+
+	if (gameState == GAMESTATE_INGAME)
+	{
+		LoadPersistentChannels();
+		UpdateZoneChannel();
+	}
 }
 
 void ChannelManager::OnPulse()
@@ -278,6 +297,7 @@ void ChannelManager::OnPulse()
 			m_nextGroupUpdate = now + GROUP_UPDATE_INTERVAL;
 			UpdateGroupChannel();
 			UpdateRaidChannel();
+			UpdateZoneChannel();
 		}
 
 		if (m_channelINISection.empty())
@@ -295,14 +315,11 @@ void ChannelManager::OnBeginZone()
 
 void ChannelManager::OnEndZone()
 {
-	if (GetGameState() == GAMESTATE_INGAME)
-	{
-		std::string_view shortName = pZoneInfo->ShortName;
-		if (!shortName.empty())
-		{
-			m_zone_channel.emplace(m_logger, "zone", shortName);
-		}
-	}
+}
+
+void ChannelManager::OnZoned()
+{
+	UpdateZoneChannel();
 }
 
 } // namespace remote

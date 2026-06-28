@@ -320,3 +320,8 @@ PLUGIN_API void OnEndZone()
 {
 	gChannels->OnEndZone();
 }
+
+PLUGIN_API void OnZoned()
+{
+	gChannels->OnZoned();
+}
