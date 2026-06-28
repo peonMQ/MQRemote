@@ -253,7 +253,7 @@ void ChannelManager::UpdateZoneChannel()
 
 	if (!m_zone_channel || !ci_equals(m_zone_channel->GetSubName(), zoneShort))
 	{
-		m_zone_channel.emplace("zone", zoneShort);
+		m_zone_channel.emplace(m_logger, "zone", zoneShort);
 	}
 }
 
