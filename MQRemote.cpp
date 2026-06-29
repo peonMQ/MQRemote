@@ -316,7 +316,7 @@ PLUGIN_API void OnBeginZone()
 	gChannels->OnBeginZone();
 }
 
-PLUGIN_API void OnEndZone()
+PLUGIN_API void OnZoned()
 {
-	gChannels->OnEndZone();
+	gChannels->OnZoned();
 }

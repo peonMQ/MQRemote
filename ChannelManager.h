@@ -25,7 +25,7 @@ public:
 	void SetGameState(int gameState);
 	void OnPulse();
 	void OnBeginZone();
-	void OnEndZone();
+	void OnZoned();
 
 	// channels
 	void JoinCustomChannel(std::string_view name, std::string_view autoArg = {});

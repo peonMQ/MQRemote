@@ -293,7 +293,7 @@ void ChannelManager::OnBeginZone()
 	m_zone_channel.reset();
 }
 
-void ChannelManager::OnEndZone()
+void ChannelManager::OnZoned()
 {
 	if (GetGameState() == GAMESTATE_INGAME)
 	{
